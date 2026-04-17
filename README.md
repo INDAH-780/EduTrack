@@ -22,6 +22,7 @@ EduTrack is a full-stack web application that automates student attendance track
 14. [API Reference](#14-api-reference)
 15. [Roles and Permissions](#15-roles-and-permissions)
 16. [Common Issues and Fixes](#16-common-issues-and-fixes)
+17. [Future Work — Edge Deployment with TinyML](#17-future-work--edge-deployment-with-tinyml)
 
 ---
 
@@ -29,14 +30,24 @@ EduTrack is a full-stack web application that automates student attendance track
 
 The system has two distinct AI components working together:
 
-**Step 1 — Face Detection (YOLOv8)**
-When a classroom photo is submitted, a custom-trained YOLOv8 model scans the image and draws bounding boxes around every face it finds. This is purely detection — it does not know who anyone is yet.
+**Step 1 — Lecturer starts the camera**
+The lecturer navigates to their course on the frontend, selects the active class schedule, and clicks "Start Capturing". The browser opens the laptop's webcam and begins a live video feed. No photo is taken manually — the system captures frames automatically every 3 seconds in the background.
 
-**Step 2 — Face Recognition (dlib / face_recognition)**
+**Step 2 — Face Detection (YOLOv8)**
+Each captured frame is sent to the Flask backend as an image file. A custom-trained YOLOv8 model scans the frame and draws bounding boxes around every face it finds. This is purely detection — it does not know who anyone is yet.
+
+**Step 3 — Face Recognition (dlib / face_recognition)**
 For each detected face (bounding box), the system crops that region and passes it through the `face_recognition` library which generates a 128-number vector called a face embedding. This embedding is a mathematical fingerprint of that face. It is then compared against all stored embeddings in the database using Euclidean distance. If the distance is below 0.4, the student is considered a match.
 
-**Step 3 — Attendance Marking**
-Once a student is identified, the system checks if they are enrolled in the course for which attendance is being taken. If they are enrolled and have not already been marked today, a new attendance record is saved with status `PRESENT`.
+**Step 4 — Attendance Marking (no duplicates)**
+Once a student is identified, the system checks two things before saving a record:
+1. Is the student enrolled in this course?
+2. Have they already been marked present for this schedule today?
+
+If both conditions pass, a new attendance record is saved with status `PRESENT`. If the same face appears in a later frame, the duplicate check prevents them from being marked twice. On the frontend, the live attendance sheet updates in real time showing each recognised student with a green tick.
+
+**Step 5 — Visual feedback on screen**
+While the camera is running, the lecturer sees the live video feed with bounding boxes drawn over detected faces. Recognised students get a green box with their name. Unrecognised faces get flagged as "Unknown". The attendance list on the right side of the screen grows as more students are identified.
 
 ---
 
@@ -218,14 +229,17 @@ This is the most important step — without embeddings in the database, the syst
 
 ### How recognition works at attendance time
 
-When a lecturer submits a classroom photo:
-1. YOLOv8 detects all faces in the image and draws bounding boxes
-2. For each detected face, `face_recognition` generates a new 128-number embedding
-3. That embedding is compared against **every stored embedding** in `face_records` using Euclidean distance
-4. If the closest match has a distance below **0.4**, the student is identified
-5. A **green box** with the student's name and matricule is drawn on the annotated image
-6. If no match is close enough, a **red box** labeled `Unknown` is drawn — the system cannot identify that person
-7. Only identified students who are enrolled in the course get marked `PRESENT`
+When a lecturer starts the camera for a class session:
+1. The frontend opens the laptop webcam and displays a live video feed
+2. Every 3 seconds, a frame is automatically captured from the video and sent to the backend
+3. YOLOv8 detects all faces in the frame and draws bounding boxes
+4. For each detected face, `face_recognition` generates a new 128-number embedding
+5. That embedding is compared against **every stored embedding** in `face_records` using Euclidean distance
+6. If the closest match has a distance below **0.4**, the student is identified
+7. A **green box** with the student's name is drawn on the live feed
+8. If no match is close enough, a **red box** labeled `Unknown` is drawn
+9. Before saving an attendance record, the system checks if the student is enrolled in the course **and** has not already been marked present for that schedule today — so even if the same face appears across 10 frames, they are only marked **PRESENT once**
+10. The attendance sheet on the frontend updates in real time as students are identified
 
 The threshold of `0.4` was chosen through testing. You can adjust it in `services/face_recognition_service.py`:
 - Lower (e.g. `0.35`) = stricter, fewer false positives but may miss some students
@@ -503,9 +517,12 @@ For each student, upload a clear face photo via the Face Records section. The sy
 ### Step 8 — Taking Attendance (Lecturer)
 1. The lecturer logs in with their credentials
 2. They navigate to their course and select the active class schedule
-3. They capture or upload a photo of the classroom
-4. The system processes the image, identifies students, and marks attendance
-5. The lecturer sees an annotated image showing who was recognised and who was not
+3. They click **"Start Capturing"** — the browser opens the laptop webcam and the live feed appears on screen
+4. The system automatically captures a frame every 3 seconds and sends it to the backend for processing
+5. As faces are detected and recognised, bounding boxes appear on the live feed — green with the student's name for recognised students, red labeled "Unknown" for unrecognised faces
+6. The attendance sheet on the right updates in real time as students are identified
+7. If the same student appears in multiple frames, the duplicate check ensures they are only marked **PRESENT once** per session
+8. The lecturer clicks **"Stop Capturing"** when done
 
 ### Step 9 — Viewing Reports
 Admins and lecturers can view attendance reports per course, showing each student's total sessions, sessions present, and sessions absent.
@@ -656,3 +673,126 @@ python3 -m venv backend/yolov8_env
 source backend/yolov8_env/bin/activate
 pip install -r backend/requirements.txt
 ```
+
+---
+
+## 17. Future Work — Edge Deployment with TinyML
+
+### The Problem with the Current Architecture
+
+EduTrack currently runs on a laptop or a cloud server. A lecturer takes a photo, it gets sent to the backend, processed, and the result comes back. This works well for a small class of 20–50 students in a single room.
+
+But consider a university like the University of Buea, or any large institution, where you might have:
+- **20,000+ students** spread across dozens of buildings and lecture halls
+- Multiple classes running simultaneously at the same time
+- Lecture halls with no reliable internet connection
+- No budget for a powerful server per classroom
+
+In that reality, you cannot have a lecturer carrying a laptop to every class. You cannot rely on a cloud server when the network is unstable. And you cannot afford to have a high-end machine in every room. This is where **TinyML and edge deployment** become the natural next step for EduTrack.
+
+---
+
+### What is TinyML?
+
+TinyML is the practice of running machine learning models directly on small, low-power hardware devices — without needing a server, a cloud connection, or even a laptop. The model lives on the device itself and does all its processing locally.
+
+Think of it like this: instead of taking a photo and sending it to a powerful computer somewhere to be analysed, the tiny device in the classroom does the analysis itself, right there, in real time.
+
+Examples of hardware that TinyML targets:
+
+| Device | What it is | Why it matters for EduTrack |
+|---|---|---|
+| Raspberry Pi 4 / 5 | Small single-board computer (~$35–$80) | Can run YOLOv8n and face recognition with a camera module attached |
+| NVIDIA Jetson Nano | Low-power GPU board (~$100–$150) | Has a real GPU, can run inference much faster than Raspberry Pi |
+| Google Coral Dev Board | Edge TPU accelerator (~$100) | Designed specifically for fast, efficient ML inference on-device |
+| ESP32-S3 with camera | Microcontroller with built-in camera (~$5–$15) | Extremely cheap, ultra-low power, suitable for simple face detection only |
+| Orange Pi / Rock Pi | Raspberry Pi alternatives (~$30–$60) | Similar capability, often cheaper |
+
+---
+
+### How EduTrack Would Work on Edge Hardware
+
+The idea is to mount a small device with a camera in each classroom — fixed to the wall or the lectern — that runs the face detection and recognition pipeline entirely on-device. Here is how the flow would change:
+
+**Current flow (cloud/laptop):**
+```
+Lecturer takes photo → sends to backend server → server runs YOLO + face_recognition → returns result → attendance saved
+```
+
+**Edge flow (TinyML device in classroom):**
+```
+Device camera captures frame → YOLO detects faces on-device → face_recognition matches embeddings on-device → attendance synced to central database when internet is available
+```
+
+The device would:
+1. Continuously capture frames from the classroom camera
+2. Run the YOLOv8 face detection model locally
+3. Extract face embeddings locally
+4. Compare against a locally stored copy of the enrolled students' embeddings for that classroom
+5. Mark attendance locally
+6. Sync the attendance records to the central PostgreSQL database whenever a network connection is available (online or offline-first)
+
+This means attendance can be taken even with **zero internet connectivity**. The sync happens later.
+
+---
+
+### Model Optimisation for Edge Devices
+
+The current `model.pt` (YOLOv8) and `dlib` face recognition pipeline are designed for a full computer. To run on a tiny device, the models need to be made smaller and faster through a process called **model optimisation**. The main techniques are:
+
+**1. Quantisation**
+Reduces the precision of the model's numbers from 32-bit floats to 8-bit integers. This makes the model 4x smaller and 2–4x faster with minimal loss in accuracy. YOLOv8 supports this natively:
+```python
+from ultralytics import YOLO
+model = YOLO('model.pt')
+model.export(format='tflite', int8=True)  # Export as quantised TFLite model
+```
+
+**2. Export to TFLite or ONNX**
+TensorFlow Lite (TFLite) is the standard format for running models on edge devices. ONNX is another portable format supported by many runtimes. YOLOv8 can export to both:
+```python
+model.export(format='tflite')   # For Raspberry Pi, Coral, mobile
+model.export(format='onnx')     # For Jetson Nano, general edge runtimes
+```
+
+**3. Use YOLOv8n (nano) — already done in this project**
+The `n` in `yolov8n` stands for nano — it is the smallest and fastest variant of YOLOv8. This project already uses it, which means the detection model is already well-suited for edge deployment with minimal changes.
+
+**4. Replace dlib with a lighter embedding model**
+`dlib` is heavy and slow on low-power hardware. For edge deployment, it should be replaced with a lighter alternative:
+- **MobileFaceNet** — designed specifically for mobile and edge devices, very fast
+- **FaceNet (MobileNetV2 backbone)** — smaller than dlib, runs well on Raspberry Pi
+- **InsightFace (buffalo_sc model)** — has a small variant optimised for edge
+
+---
+
+### Recommended Hardware Path
+
+If you want to build the edge version of EduTrack, here is the recommended progression:
+
+**Stage 1 — Proof of concept (~$80)**
+Use a **Raspberry Pi 4 (4GB RAM)** with the official Camera Module v2. Install the TFLite runtime, export the YOLOv8 model to TFLite, and replace dlib with MobileFaceNet. This will give you a working prototype that runs entirely offline.
+
+**Stage 2 — Production-ready (~$150)**
+Use an **NVIDIA Jetson Nano** or **Jetson Orin Nano**. These have a real GPU that can run the full YOLOv8 + face recognition pipeline at 15–30 FPS, which is fast enough for a live classroom camera feed. The Jetson also supports ONNX and TensorRT for further acceleration.
+
+**Stage 3 — Scale across campus**
+Deploy one device per classroom. Each device holds the embeddings for students enrolled in courses scheduled in that room. A central server (the existing EduTrack backend) receives attendance syncs from all devices. The admin dashboard shows real-time attendance across the entire campus.
+
+---
+
+### What Needs to Change in the Codebase
+
+To support edge deployment, the following changes would be needed:
+
+- **Export pipeline** — add a script to export `model.pt` to TFLite/ONNX format
+- **Lightweight embedding model** — replace `face_recognition` (dlib) with MobileFaceNet or similar
+- **Offline-first attendance sync** — add a local SQLite store on the device that queues attendance records and syncs to the central PostgreSQL database when online
+- **Device registration** — each classroom device registers itself with the backend so the server knows which room it belongs to and which students to load embeddings for
+- **Embedding distribution** — the backend pushes the relevant face embeddings to each device when students are enrolled or updated, so the device always has an up-to-date local copy
+
+---
+
+### Why This Matters
+
+The current EduTrack system proves the concept works — facial recognition can accurately identify students and automate attendance. The edge deployment path is what takes it from a university project to something that could realistically be deployed across an entire institution at scale, with low cost per classroom, no dependency on internet connectivity during class, and no need for a lecturer to do anything at all beyond walking into the room.
