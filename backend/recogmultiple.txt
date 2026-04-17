@@ -1,0 +1,154 @@
+import cv2
+import numpy as np
+import face_recognition
+import psycopg2
+from scipy.spatial.distance import euclidean
+from ultralytics import YOLO
+import time
+
+# Load YOLOv8 model
+yolo_model = YOLO("/home/indah-mbah/Desktop/EduTrack/backend/runs/detect/train/weights/best.pt")
+
+# Database connection
+conn = psycopg2.connect("dbname=edu_track user=postgres password=postgress123 host=localhost")
+cursor = conn.cursor()
+
+# Get all students with cleaned data
+cursor.execute("""
+    SELECT DISTINCT s.matricule, TRIM(s.name), TRIM(s.level), TRIM(s.department), f.face_embedding 
+    FROM students s
+    JOIN face_records f ON s.matricule = f.matricule
+""")
+all_students = cursor.fetchall()
+
+# Pre-process embeddings
+student_embeddings = []
+student_dict = {}  # For quick lookup
+for matricule, name, level, department, stored_embedding in all_students:
+    # Clean the data
+    level = level.replace("Level", "").strip()
+    department = department.strip()
+    
+    student_data = {
+        'matricule': matricule,
+        'name': name,
+        'level': level,
+        'department': department,
+        'embedding': np.frombuffer(stored_embedding, dtype=np.float64)[:128]
+    }
+    student_embeddings.append(student_data)
+    student_dict[matricule] = student_data
+
+# Tracking variables
+detected_students = set()  # Stores matricules of detected students
+unrecognized_faces = 0
+last_detection_time = time.time()
+inactivity_timeout = 30  # seconds
+
+cap = cv2.VideoCapture(0)
+
+def print_student_info(student):
+    """Print formatted student information"""
+    print("\n🔹 Detected Student Info:")
+    print(f"   Matricule: {student['matricule']}")
+    print(f"   Name: {student['name']}")
+    print(f"   Level: {student['level']}")
+    print(f"   Department: {student['department']}")
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    current_time = time.time()
+    
+    # Face detection
+    results = yolo_model(frame)
+    boxes = results[0].boxes.xyxy.cpu().numpy()
+    
+    for box in boxes:
+        x1, y1, x2, y2 = map(int, box)
+        face_crop = frame[y1:y2, x1:x2]
+
+        rgb_face = cv2.cvtColor(face_crop, cv2.COLOR_BGR2RGB)
+        face_encodings = face_recognition.face_encodings(rgb_face)
+
+        if face_encodings:
+            detected_embedding = face_encodings[0]
+            best_match = None
+            best_distance = float("inf")
+
+            for student in student_embeddings:
+                distance = euclidean(student['embedding'], detected_embedding)
+                if distance < best_distance:
+                    best_distance = distance
+                    best_match = student
+
+            if best_match and best_distance < 0.4:
+                matricule = best_match['matricule']
+                
+                if matricule not in detected_students:
+                    detected_students.add(matricule)
+                    print_student_info(best_match)
+                    
+                    cursor.execute("UPDATE students SET last_seen = NOW() WHERE matricule = %s", (matricule,))
+                    conn.commit()
+                
+                last_detection_time = current_time
+                
+                # Display info on frame
+                display_text = f"{best_match['name']} ({matricule})"
+                cv2.putText(frame, display_text, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,0), 2)
+                cv2.rectangle(frame, (x1,y1), (x2,y2), (0,255,0), 2)
+            else:
+                unrecognized_faces += 1
+                cv2.putText(frame, "Unknown", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,255), 2)
+                cv2.rectangle(frame, (x1,y1), (x2,y2), (0,0,255), 2)
+
+    # Check inactivity timeout
+    if current_time - last_detection_time > inactivity_timeout and detected_students:
+        print("\nNo faces detected for 30 seconds. Stopping...")
+        break
+
+    # Display stats
+    stats_text = f"Present: {len(detected_students)} | Absent: {len(student_embeddings)-len(detected_students)} | Unknown: {unrecognized_faces}"
+    cv2.putText(frame, stats_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
+    
+    cv2.imshow("EduTrack Attendance", frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# Final report
+total_students = len(student_embeddings)
+absent_students = [s for s in student_embeddings if s['matricule'] not in detected_students]
+
+print("\n" + "="*50)
+print("FINAL ATTENDANCE REPORT".center(50))
+print("="*50)
+print(f"\nTotal Students: {total_students}")
+print(f"Present: {len(detected_students)}")
+print(f"Absent: {len(absent_students)}")
+print(f"Unrecognized Faces: {unrecognized_faces}")
+
+# Present students
+print("\nPRESENT STUDENTS:")
+for matricule in detected_students:
+    student = student_dict[matricule]
+    print(f"- {student['name']} ({matricule}), {student['department']}, Level {student['level']}")
+
+# Absent students (grouped by department and level)
+print("\nABSENT STUDENTS (Grouped):")
+current_dept = ""
+current_level = ""
+for student in sorted(absent_students, key=lambda x: (x['department'], x['level'], x['name'])):
+    if student['department'] != current_dept or student['level'] != current_level:
+        current_dept = student['department']
+        current_level = student['level']
+        print(f"\n{current_dept} - Level {current_level}:")
+    print(f"- {student['name']} ({student['matricule']})")
+
+print("="*50)
+
+cap.release()
+cv2.destroyAllWindows()
+conn.close()

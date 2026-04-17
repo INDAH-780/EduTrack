@@ -1,0 +1,51 @@
+# ========================
+# Python / Backend
+# ========================
+backend/yolov8_env/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.env
+*.log
+
+# ========================
+# ML / Model files
+# ========================
+backend/model.pt
+backend/runs/
+backend/dataset/
+backend/labels/
+backend/labelling/
+*.pt
+*.onnx
+*.weights
+
+# ========================
+# Database / Secrets
+# ========================
+backend/jjjjsecrets.py
+backend/secrets_1.py
+*.db
+*.sqlite3
+
+# ========================
+# Next.js / Frontend
+# ========================
+facetrack/node_modules/
+facetrack/.next/
+facetrack/out/
+facetrack/.pnpm-debug.log*
+facetrack/npm-debug.log*
+facetrack/yarn-debug.log*
+facetrack/yarn-error.log*
+facetrack/.env*
+facetrack/*.tsbuildinfo
+facetrack/next-env.d.ts
+
+# ========================
+# OS
+# ========================
+.DS_Store
+Thumbs.db
