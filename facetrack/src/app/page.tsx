@@ -7,19 +7,18 @@ import { Loader2 } from "lucide-react"
 
 export default function HomePage() {
   const router = useRouter()
-  const { isAuthenticated, user, loading } = useAuth()
+  const { isAuthenticated, userType, loading } = useAuth()
 
   useEffect(() => {
     if (!loading) {
-      if (isAuthenticated && user?.user_type) {
-        // If already logged in, redirect to appropriate dashboard
-        router.push(`/${user.user_type}/dashboard`)
+      if (isAuthenticated && userType) {
+        router.push(`/dashboard/${userType}`)
       } else {
         // If not logged in, redirect to login
         router.push("/login")
       }
     }
-  }, [isAuthenticated, user, router, loading])
+  }, [isAuthenticated, userType, router, loading])
 
   // Show loading spinner while checking auth
   if (loading) {
