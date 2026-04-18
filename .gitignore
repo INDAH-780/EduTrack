@@ -20,7 +20,6 @@ backend/*.bin
 # ========================
 # ML / Model files
 # ========================
-backend/model.pt
 backend/runs/**
 !backend/runs/**/
 !backend/runs/**/best.pt
