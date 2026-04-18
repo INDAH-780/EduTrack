@@ -5,7 +5,7 @@ import type React from "react"
 import { useEffect, useRef, useState } from "react"
 
 interface FaceDetectorProps {
-  videoRef: React.RefObject<HTMLVideoElement>
+  videoRef: React.RefObject<HTMLVideoElement | null>
   onFaceDetectionChange: (detected: boolean) => void
 }
 
