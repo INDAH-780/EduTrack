@@ -158,11 +158,13 @@ function ResetPasswordContent() {
         </Card>
       </div>
     </div>
+  );
+}
+
 export default function ResetPasswordPage() {
   return (
     <Suspense fallback={null}>
       <ResetPasswordContent />
     </Suspense>
   );
-}
 }
