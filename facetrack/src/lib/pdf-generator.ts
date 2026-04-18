@@ -104,7 +104,7 @@ export const generateAttendanceReport = async (date: Date, type = "students") =>
   const { default: autoTable } = await import("jspdf-autotable")
 
   // Create a new PDF document
-  const doc = new jsPDF()
+  const doc = new jsPDF() as InstanceType<typeof jsPDF> & { lastAutoTable: { finalY: number } }
   const formattedDate = format(date, "MMMM d, yyyy")
 
   // Add title and date
@@ -129,7 +129,7 @@ export const generateAttendanceReport = async (date: Date, type = "students") =>
   const data = type === "students" ? mockStudentData : mockLecturerData
 
   const summaryData = [
-    [`Total ${type}`, statistics.totalStudents || statistics.totalLecturers],
+    [`Total ${type}`, type === "students" ? mockStudentStatistics.totalStudents : mockLecturerStatistics.totalLecturers],
     ["Present", statistics.present],
     ["Absent", statistics.absent],
     ["Late", statistics.late],
