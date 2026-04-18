@@ -2,10 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-// import { Course, AddCoursePayload } from '@/types/course';
 import { fetchCourses, addCourse, fetchLecturers } from '@/lib/api';
-// import { DataTable } from '@/components/courses/data-table';
-// import { columns } from '@/components/courses/columns';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import {
@@ -30,7 +27,7 @@ interface CourseError {
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
-  const [lecturers, setLecturers] = useState<string[]>([]);
+  const [lecturers, setLecturers] = useState<{ lecturer_id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<CourseError | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
@@ -51,7 +48,7 @@ export default function CoursesPage() {
       ]);
       
       setCourses(coursesData);
-      setLecturers(lecturersData.map(l => l.name));
+      setLecturers(lecturersData.map(l => ({ lecturer_id: l.id, name: l.name })));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load data';
       const isAuthError = errorMessage.includes('Authentication') || 

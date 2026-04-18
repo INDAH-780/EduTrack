@@ -12,7 +12,7 @@ import { AddCoursePayload } from '@/types/courses';
 
 interface AddCourseFormProps {
   departments: string[];
-  lecturers: string[];
+  lecturers: { lecturer_id: string; name: string }[];
   levels: string[];
   semesters: string[];
   onSuccess?: () => void;
@@ -29,7 +29,7 @@ export function AddCourseForm({
     course_code: '',
     course_name: '',
     department: '',
-    lecturer_name: '',
+    lecturer_id: '',
     level: '',
     semester: ''
   });
@@ -52,7 +52,7 @@ export function AddCourseForm({
         course_code: '',
         course_name: '',
         department: '',
-        lecturer_name: '',
+        lecturer_id: '',
         level: '',
         semester: ''
       });
@@ -117,10 +117,10 @@ export function AddCourseForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="lecturer_name">Lecturer</Label>
+          <Label htmlFor="lecturer_id">Lecturer</Label>
           <Select
-            value={formData.lecturer_name}
-            onValueChange={(value) => setFormData({...formData, lecturer_name: value})}
+            value={formData.lecturer_id}
+            onValueChange={(value) => setFormData({...formData, lecturer_id: value})}
             required
           >
             <SelectTrigger>
@@ -128,8 +128,8 @@ export function AddCourseForm({
             </SelectTrigger>
             <SelectContent>
               {lecturers.map((lecturer) => (
-                <SelectItem key={lecturer} value={lecturer}>
-                  {lecturer}
+                <SelectItem key={lecturer.lecturer_id} value={lecturer.lecturer_id}>
+                  {lecturer.name}
                 </SelectItem>
               ))}
             </SelectContent>

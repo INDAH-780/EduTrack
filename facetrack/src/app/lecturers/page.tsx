@@ -13,7 +13,6 @@ import {
   DialogTitle,
   DialogTrigger
 } from '@/components/ui/dialog';
-// import { AddLecturerForm } from '@/components/lecturers/add-lecturer-form';
 import { useToast } from '@/components/ui/use-toast';
 import { AddLecturerForm } from '@/components/lecturer/add-lecturer-form';
 
