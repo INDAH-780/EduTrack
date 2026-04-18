@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 // Added XCircle for Absent status visual
 import { ChevronLeft, CheckCircle2, AlertCircle, XCircle } from 'lucide-react'; 
@@ -71,7 +71,7 @@ type ApiResponse = {
   // annotated_image?: string; // Add if you intend to display the annotated image from backend
 };
 
-export default function TakeAttendancePage() {
+function TakeAttendanceContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const params = useParams();
@@ -684,5 +684,13 @@ export default function TakeAttendancePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function TakeAttendancePage() {
+  return (
+    <Suspense fallback={null}>
+      <TakeAttendanceContent />
+    </Suspense>
   );
 }
