@@ -2,6 +2,7 @@
 # Python / Backend
 # ========================
 backend/yolov8_env/
+backend/yolo8_env/
 __pycache__/
 *.py[cod]
 *.pyo
@@ -9,6 +10,12 @@ __pycache__/
 *.egg-info/
 .env
 *.log
+
+# ========================
+# Debug / Temp scripts
+# ========================
+backend/debug.py
+backend/*.bin
 
 # ========================
 # ML / Model files
