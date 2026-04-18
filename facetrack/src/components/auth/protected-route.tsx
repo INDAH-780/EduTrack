@@ -13,7 +13,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { isAuthenticated, user, loading } = useAuth()
+  const { isAuthenticated, userType, loading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
@@ -23,15 +23,13 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
         return
       }
 
-      if (requiredRole && user?.user_type !== requiredRole) {
-        // Redirect to appropriate dashboard if wrong role
-        router.push(`/${user?.user_type}/dashboard`)
+      if (requiredRole && userType !== requiredRole) {
+        router.push(`/dashboard/${userType}`)
         return
       }
     }
-  }, [isAuthenticated, requiredRole, user, router, loading])
+  }, [isAuthenticated, requiredRole, userType, router, loading])
 
-  // Show loading spinner while checking auth
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -40,8 +38,7 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
     )
   }
 
-  // Don't render if not authenticated or wrong role
-  if (!isAuthenticated || (requiredRole && user?.user_type !== requiredRole)) {
+  if (!isAuthenticated || (requiredRole && userType !== requiredRole)) {
     return null
   }
 
