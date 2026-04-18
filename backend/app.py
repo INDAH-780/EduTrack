@@ -142,19 +142,14 @@ def create_app():
                 # This branch will be executed for multipart/form-data requests
                 app.logger.info(f"--- GLOBAL BEFORE REQUEST: Request is NOT JSON (Content-Type: {request.content_type}). ---")
 
+    # Initialize FACE_SERVICE here so it works both locally and on Railway/gunicorn
+    with app.app_context():
+        from services.face_recognition_service import FaceRecognitionService
+        app.config['FACE_SERVICE'] = FaceRecognitionService(Config.YOLO_MODEL_PATH, app, db)
+    app.logger.info("--- app.py: FaceRecognitionService initialized. ---")
+
     return app
 
 if __name__ == '__main__':
-    print("--- app.py: Running __name__ == '__main__' block ---")
     app = create_app()
-
-    with app.app_context():
-        from services.face_recognition_service import FaceRecognitionService
-        def initialize_face_service():
-            return FaceRecognitionService(Config.YOLO_MODEL_PATH, app, db)
-        app.config['FACE_SERVICE'] = initialize_face_service()
-    print("--- app.py: FaceRecognitionService initialized. ---")
-
-    print("--- app.py: Starting Flask app. ---")
-    # Using threaded=True can help with concurrency in dev server for multiple requests
     app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
