@@ -42,8 +42,9 @@ class FaceRecognitionService:
         results = self.yolo_model(frame)
         boxes = results[0].boxes.xyxy.cpu().numpy()
         detected_students = set()
-        unrecognized_faces = 0
-        embeddings = self.load_embeddings()  # Load embeddings here
+        unrecognized_faces = []  # list of box dicts for unknown faces
+        detected_faces = []      # all faces with box + optional student info
+        embeddings = self.load_embeddings()
 
         for box in boxes:
             x1, y1, x2, y2 = map(int, box)
@@ -66,31 +67,40 @@ class FaceRecognitionService:
                     matricule = best_match['matricule']
                     detected_students.add(matricule)
 
-                    # Update last seen in database inside Flask context
                     with self.app.app_context():
                         student = Student.query.get(matricule)
                         if student:
                             student.last_seen = self.db.func.now()
                             self.db.session.commit()
 
-                    # Annotate frame
-                    display_text = f"{best_match['name']} ({matricule})"
-                    cv2.putText(frame, display_text, (x1, y1 - 10),
+                    cv2.putText(frame, f"{best_match['name']} ({matricule})", (x1, y1 - 10),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+                    detected_faces.append({
+                        'box': {'left': x1, 'top': y1, 'right': x2, 'bottom': y2},
+                        'student': {'matricule': matricule, 'name': best_match['name']}
+                    })
                 else:
-                    unrecognized_faces += 1
                     cv2.putText(frame, "Unknown", (x1, y1 - 10),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
 
-        # Convert frame to bytes for API response
+                    unrecognized_faces.append(
+                        {'box': {'left': x1, 'top': y1, 'right': x2, 'bottom': y2}}
+                    )
+                    detected_faces.append({
+                        'box': {'left': x1, 'top': y1, 'right': x2, 'bottom': y2},
+                        'student': None
+                    })
+
         _, buffer = cv2.imencode('.jpg', frame)
         frame_bytes = buffer.tobytes()
 
         return {
             'detected_students': list(detected_students),
-            'unrecognized_faces': unrecognized_faces,
+            'unrecognized_faces': unrecognized_faces,  # list, safe to append
+            'detected_faces': detected_faces,           # all faces with boxes
             'frame_with_annotations': frame_bytes
         }
 

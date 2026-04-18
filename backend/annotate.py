@@ -8,8 +8,9 @@ model = YOLO("model.pt")
 model.to("cpu")
 
 # Define dataset path
-dataset_path = Path("/home/indah-mbah/Desktop/EduTrack/backend/dataset")  # Update this path
-labels_path = dataset_path.parent / "labels"  # Labels folder will be next to dataset
+BASE_DIR = Path(__file__).resolve().parent
+dataset_path = BASE_DIR / "dataset"
+labels_path = BASE_DIR / "labels"
 
 # Recursively process all images inside subdirectories
 for image_path in dataset_path.glob("**/*.jpg"):  # Modify for .jpeg or .png if needed

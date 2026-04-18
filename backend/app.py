@@ -214,6 +214,7 @@ from extensions import db, migrate, jwt
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    app.url_map.strict_slashes = False
 
     # --- CRITICAL: Set MAX_CONTENT_LENGTH here, BEFORE any request processing ---
     # This limit applies to the total size of the request body (including image_data)
@@ -253,6 +254,7 @@ def create_app():
     # Register blueprints
     app.logger.info("--- app.py: About to import routes... ---")
     from routes.auth import auth_bp
+    from routes.admins import admins_bp
     from routes.students import students_bp
     from routes.face_records import face_records_bp
     from routes.lecturers import lecturers_bp
@@ -266,6 +268,7 @@ def create_app():
 
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    app.register_blueprint(admins_bp, url_prefix='/api/admins')
     app.register_blueprint(students_bp, url_prefix='/api/students')
     app.register_blueprint(face_records_bp, url_prefix='/api/faces')
     app.register_blueprint(lecturers_bp, url_prefix='/api/lecturers')

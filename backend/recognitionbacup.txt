@@ -7,7 +7,7 @@ from scipy.spatial.distance import euclidean
 from ultralytics import YOLO  # Load YOLOv8
 
 # Load YOLOv8 model for face detection
-yolo_model = YOLO("/home/indah-mbah/Desktop/EduTrack/backend/runs/detect/train/weights/best.pt")
+yolo_model = YOLO("/home/indah-mbah/Documents/EduTrack/backend/runs/detect/train/weights/best.pt")
 
 # Connect to PostgreSQL
 conn = psycopg2.connect("dbname=edu_track user=postgres password=postgress123 host=localhost")

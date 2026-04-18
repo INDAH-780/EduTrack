@@ -1,10 +1,16 @@
 import psycopg2
 import pandas as pd
+import os
+from pathlib import Path
+from dotenv import load_dotenv
 
-conn = psycopg2.connect("dbname=edu_track user=postgres password=postgress123 host=localhost")
+load_dotenv()
+
+conn = psycopg2.connect(os.getenv('DATABASE_URL', 'dbname=edu_track user=postgres password=postgress123 host=localhost'))
 cursor = conn.cursor()
 
-df = pd.read_csv("/home/indah-mbah/Desktop/EduTrack/backend/studentsName.csv")
+BASE_DIR = Path(__file__).resolve().parent
+df = pd.read_csv(BASE_DIR / 'studentsName.csv')
 
 for _, row in df.iterrows():
     cursor.execute(

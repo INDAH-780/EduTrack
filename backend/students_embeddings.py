@@ -3,13 +3,16 @@ import face_recognition
 import psycopg2
 import os
 import numpy as np
+from pathlib import Path
+from dotenv import load_dotenv
 
-# Connect to PostgreSQL
-conn = psycopg2.connect("dbname=edu_track user=postgres password=postgress123 host=localhost")
+load_dotenv()
+
+conn = psycopg2.connect(os.getenv('DATABASE_URL', 'dbname=edu_track user=postgres password=postgress123 host=localhost'))
 cursor = conn.cursor()
 
-# Path to student images
-image_folder = "/home/indah-mbah/Desktop/EduTrack/backend/dataset/train/images/"
+BASE_DIR = Path(__file__).resolve().parent
+image_folder = str(BASE_DIR / 'dataset' / 'train' / 'images')
 
 for student_folder in os.listdir(image_folder):
     student_path = os.path.join(image_folder, student_folder)

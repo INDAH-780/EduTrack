@@ -7,7 +7,7 @@ from ultralytics import YOLO
 import time
 
 # Load YOLOv8 model
-yolo_model = YOLO("/home/indah-mbah/Desktop/EduTrack/backend/runs/detect/train/weights/best.pt")
+yolo_model = YOLO("/home/indah-mbah/Documents/EduTrack/backend/runs/detect/train/weights/best.pt")
 
 # Database connection
 conn = psycopg2.connect("dbname=edu_track user=postgres password=postgress123 host=localhost")

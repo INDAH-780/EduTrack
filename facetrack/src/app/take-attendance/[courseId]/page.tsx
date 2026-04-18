@@ -1507,12 +1507,10 @@
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-// Added XCircle for Absent status visual, AlertCircle for Unrecognized
-import { ChevronLeft, CheckCircle2, AlertCircle, XCircle } from 'lucide-react'; 
+import { ChevronLeft, CheckCircle2, AlertCircle, XCircle, Clock } from 'lucide-react';
 import { useAuth } from '@/context/authContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/components/ui/use-toast';
-// Import table components for the attendance sheet
 import {
   Table,
   TableBody,
@@ -1521,40 +1519,36 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { getAuthToken } from '@/lib/auth';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
 
-// Type definitions
-// Updated: More specific type for the student object returned within detected_faces
-type StudentInfo = { 
-  matricule: string; // This should match the 'matricule' field from your Student.to_dict()
-  name: string; // Student's name
+type EnrolledStudent = {
+  matricule: string;
+  name: string;
+  status: 'pending' | 'present' | 'absent';
 };
 
-type FaceBox = {
-  left: number;
-  top: number; 
-  right: number;
-  bottom: number;
-};
-
+type FaceBox = { left: number; top: number; right: number; bottom: number };
 type DetectedFace = {
   box: FaceBox;
-  student?: StudentInfo; // References StudentInfo type, will be undefined if not recognized
+  student?: { matricule: string; name: string } | null;
 };
 
-// Updated: Type to accurately reflect AttendanceRecord.to_dict() from backend
-type BackendAttendanceRecord = { 
+type AttendanceRecord = {
   attendance_id: number;
-  matricule: string; // This is the matricule (primary key) from the backend model
-  student_name: string; // Directly available, not nested under 'student'
-  course_code: string;
-  course_name: string;
-  schedule_id: number;
-  schedule_info: any; // Can be more specific if needed, e.g., schedule: ClassScheduleInfo
-  date: string;
-  status: 'PRESENT' | 'ABSENT' | 'LATE'; // Enforce specific status strings
-  timestamp: string;
-  verified_by_face: boolean;
+  matricule: string;
+  student_name: string;
+  status: 'PRESENT' | 'ABSENT' | 'LATE';
+};
+
+type ApiResponse = {
+  attendance_records_created?: AttendanceRecord[];
+  detected_faces?: DetectedFace[];
+  unrecognized_faces?: any[];
+  message?: string;
+  error?: string;
+  annotated_image?: string;
 };
 
 type CourseInfo = {
@@ -1565,319 +1559,194 @@ type CourseInfo = {
   location: string;
 };
 
-// Updated: ApiResponse type to match backend's property names and include annotated_image
-type ApiResponse = {
-  attendance_records_created?: BackendAttendanceRecord[]; // Matches backend property
-  detected_faces?: DetectedFace[];
-  message?: string;
-  error?: string;
-  error_message_from_backend?: string; // Generic property for backend error messages
-  annotated_image?: string; // Add if you intend to display the annotated image from backend
-};
-
 export default function TakeAttendancePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const params = useParams();
   const { user, isAuthenticated, userType } = useAuth();
-  
-  // Refs
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null); // To manage the media stream
+  const streamRef = useRef<MediaStream | null>(null);
 
-  // State
-  const [isLoading, setIsLoading] = useState<boolean>(false); // For webcam initialization
-  const [isCapturing, setIsCapturing] = useState<boolean>(false); // For sending frames to backend
-  const [attendanceRecords, setAttendanceRecords] = useState<BackendAttendanceRecord[]>([]); 
+  const [isLoading, setIsLoading] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [isWebcamReady, setIsWebcamReady] = useState(false);
   const [detectedFaces, setDetectedFaces] = useState<DetectedFace[]>([]);
-  const [isWebcamReady, setIsWebcamReady] = useState<boolean>(false); // True when video stream is actively playing
+  const [unrecognizedCount, setUnrecognizedCount] = useState(0);
+
+  // Full enrolled student list with live status
+  const [enrolledStudents, setEnrolledStudents] = useState<EnrolledStudent[]>([]);
 
   const [courseInfo, setCourseInfo] = useState<CourseInfo>({
-    courseCode: '',
-    courseName: '',
-    scheduleId: 0,
-    dayTime: '',
-    location: ''
+    courseCode: '', courseName: '', scheduleId: 0, dayTime: '', location: ''
   });
 
-  // Get course code from params
   const courseCode = typeof params.courseId === 'string'
     ? params.courseId
-    : Array.isArray(params.courseId)
-      ? params.courseId[0] || ''
-      : '';
+    : Array.isArray(params.courseId) ? params.courseId[0] || '' : '';
 
-  // Initialize course info
+  // Load course info from URL params
   useEffect(() => {
     const scheduleId = Number(searchParams.get('schedule_id')) || 0;
     const courseName = searchParams.get('course_name') || '';
     const startTime = searchParams.get('start_time') || '';
     const endTime = searchParams.get('end_time') || '';
     const location = decodeURIComponent(searchParams.get('location') || '');
-
-    setCourseInfo({
-      courseCode,
-      courseName,
-      scheduleId,
-      dayTime: `${startTime} - ${endTime}`,
-      location
-    });
+    setCourseInfo({ courseCode, courseName, scheduleId, dayTime: `${startTime} - ${endTime}`, location });
   }, [courseCode, searchParams]);
 
   // Auth check
   useEffect(() => {
-    if (!isAuthenticated || userType !== 'lecturer') {
-      router.push('/login');
-    }
+    if (!isAuthenticated || userType !== 'lecturer') router.push('/login');
   }, [isAuthenticated, userType, router]);
 
-  // Initialize webcam
+  // Fetch all enrolled students for this course on mount
+  useEffect(() => {
+    if (!courseCode) return;
+    const token = getAuthToken();
+    fetch(`${API_URL}/api/enrollments/course/${courseCode}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then((data: any[]) => {
+        setEnrolledStudents(
+          data.map(e => ({
+            matricule: e.student_info?.matricule || e.matricule,
+            name: e.student_info?.name || '',
+            status: 'pending'
+          }))
+        );
+      })
+      .catch(err => console.error('Failed to load enrolled students:', err));
+  }, [courseCode]);
+
+  // Webcam init
   const initializeWebcam = useCallback(async () => {
     try {
-      console.log("DEBUG: Initializing webcam...");
-      setIsLoading(true); // Show initializing state
-      
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Webcam not supported in this browser');
-      }
-
+      setIsLoading(true);
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'user', // Use front camera on mobile if available
-          width: { ideal: 1280 }, // Request higher resolution for better detection
-          height: { ideal: 720 }
-        },
-        audio: false // No audio needed
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
       });
-
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        streamRef.current = stream; // Store stream for cleanup
-        
-        // Wait for video to be ready to play
+        streamRef.current = stream;
         await new Promise<void>((resolve, reject) => {
           if (videoRef.current) {
-            videoRef.current.onloadedmetadata = () => {
-              videoRef.current?.play().then(() => {
-                resolve();
-              }).catch(err => {
-                console.error("Error playing video stream:", err);
-                reject(new Error(`Failed to play video stream: ${err.name || err.message}`));
-              });
-            };
-            videoRef.current.onerror = (e) => {
-              console.error("Video element error:", e);
-              reject(new Error(`Video element error: ${e}`));
-            };
-          } else {
-            reject(new Error("Video ref not available during loadedmetadata setup."));
-          }
+            videoRef.current.onloadedmetadata = () =>
+              videoRef.current?.play().then(resolve).catch(reject);
+          } else reject(new Error('No video ref'));
         });
-        
-        console.log("DEBUG: Webcam stream started and playing.");
-        setIsWebcamReady(true); // Mark webcam as ready
+        setIsWebcamReady(true);
       }
-
-      setIsLoading(false); // Hide initializing state
     } catch (error) {
-      console.error('Webcam error:', error);
-      toast({
-        title: 'Webcam Error',
-        description: `Could not access webcam: ${error instanceof Error ? error.message : String(error)}. Please ensure camera access is granted.`,
-        variant: 'destructive'
-      });
-      setIsLoading(false); // Hide initializing state
-      setIsWebcamReady(false); // Mark webcam as not ready
+      toast({ title: 'Webcam Error', description: String(error), variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
-  // Cleanup webcam on component unmount
   useEffect(() => {
-    return () => {
-      console.log("DEBUG: Cleaning up webcam stream on component unmount.");
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-    };
+    return () => { streamRef.current?.getTracks().forEach(t => t.stop()); };
   }, []);
 
-  // Capture and process frame
+  // Capture frame and send to backend
   const captureAndProcess = useCallback(async () => {
-    // Only proceed if webcam is ready and actively playing
-    if (!videoRef.current || !canvasRef.current || !isWebcamReady) {
-      console.warn("DEBUG: Skipping capture: Webcam not ready or not playing.");
-      return;
-    }
-
+    if (!videoRef.current || !canvasRef.current || !isWebcamReady) return;
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-    if (!ctx) {
-      console.error("DEBUG: Canvas 2D context not available.");
-      toast({
-        title: 'Canvas Error',
-        description: 'Failed to get canvas context. Try refreshing.',
-        variant: 'destructive'
-      });
-      return;
-    }
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+
+    const blob: Blob | null = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.8));
+    if (!blob || blob.size < 10000) return;
+
+    const formData = new FormData();
+    formData.append('image_data', blob, 'attendance.jpg');
+    formData.append('course_code', courseCode);
+    formData.append('schedule_id', String(courseInfo.scheduleId));
 
     try {
-      // Set canvas dimensions to match video (important for correct scaling of bounding boxes)
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      // Get image as Blob (for multipart/form-data)
-      const blob: Blob | null = await new Promise(resolve => {
-        // Quality 0.8 is good balance
-        canvas.toBlob(resolve, 'image/jpeg', 0.8); 
-      });
-
-      if (!blob) {
-        console.error("DEBUG: Failed to create image blob from canvas.");
-        throw new Error("Failed to create image blob");
-      }
-
-      // Check blob size to avoid sending empty/tiny images
-      const MIN_BLOB_SIZE = 10000; // 10KB as a minimum
-      if (blob.size < MIN_BLOB_SIZE) {
-        console.warn("DEBUG: Captured image blob is very small. Skipping sending to backend. Size:", blob.size);
-        toast({
-          title: 'Image Capture Warning',
-          description: 'Captured image is too small. Please ensure proper lighting and camera focus.',
-          variant: 'default'
-        });
-        return;
-      }
-
-      // Create FormData object
-      const formData = new FormData();
-      formData.append('image_data', blob, 'attendance.jpg');
-      formData.append('course_code', courseCode);
-      formData.append('schedule_id', String(courseInfo.scheduleId)); // Ensure schedule_id is a string
-
-      console.log("Frontend DEBUG: Sending Request to Backend (Multipart/Form-Data):");
-      console.log("  URL:", 'http://127.0.0.1:5000/api/attendance/mark');
-      console.log("  Method:", 'POST');
-      console.log("  Course Code:", courseCode);
-      console.log("  Schedule ID:", courseInfo.scheduleId);
-      // Note: FormData content cannot be easily logged directly in console
-
-      const response = await fetch('http://127.0.0.1:5000/api/attendance/mark', {
+      const token = getAuthToken();
+      const response = await fetch(`${API_URL}/api/attendance/mark`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-          // DO NOT set 'Content-Type' for FormData; browser sets it automatically with boundary
-        },
-        body: formData // Send the FormData object directly
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
       });
 
-      if (!response.ok) {
-        const errorData = await response.json() as ApiResponse;
-        console.error('Frontend DEBUG: Backend Error Response:', errorData); // Log full error response
-        toast({
-            title: 'Attendance Error',
-            description: errorData.error || errorData.message || 'Failed to mark attendance.', 
-            variant: 'destructive'
-        });
-        return; // Exit if response not OK
-      }
-      
-      const result = await response.json() as ApiResponse;
-      console.log("Frontend DEBUG: Backend Full Response:", result); // IMPORTANT: Log the full successful response
-
-      // Update attendance records if received
-      if (result.attendance_records_created && result.attendance_records_created.length > 0) {
-        setAttendanceRecords(prev => {
-          const recordsMap = new Map<string, BackendAttendanceRecord>(
-            prev.map(record => [record.matricule, record]) // Use matricule as key for uniqueness
-          );
-          result.attendance_records_created?.forEach(newRecord => {
-            recordsMap.set(newRecord.matricule, newRecord); // Add/update new records
-          });
-          return Array.from(recordsMap.values()); // Convert map back to array
-        });
-        toast({
-            title: 'Attendance Marked!',
-            description: `Successfully marked ${result.attendance_records_created.length} student(s).`,
-            variant: 'success' // Use a success toast variant
-        });
-      } else if (result.message && result.message.includes("already marked")) {
-         toast({
-            title: 'Attendance Info',
-            description: result.message, // "Attendance for FE20A204 already marked..."
-            variant: 'default'
-        });
-      }
-
+      if (!response.ok) return;
+      const result: ApiResponse = await response.json();
 
       // Update detected faces for bounding boxes
-      if (result.detected_faces) {
-        setDetectedFaces(result.detected_faces);
-      } else {
-        setDetectedFaces([]); // Clear faces if none detected
+      if (result.detected_faces) setDetectedFaces(result.detected_faces);
+
+      // Update unrecognized count
+      if (result.unrecognized_faces) setUnrecognizedCount(result.unrecognized_faces.length);
+
+      // Mark recognised students as present in the enrolled list
+      if (result.attendance_records_created && result.attendance_records_created.length > 0) {
+        const presentMatricules = new Set(
+          result.attendance_records_created.map(r => r.matricule)
+        );
+        setEnrolledStudents(prev =>
+          prev.map(s => presentMatricules.has(s.matricule) ? { ...s, status: 'present' } : s)
+        );
       }
 
-    } catch (error) {
-      console.error("Frontend DEBUG: Capture error (network/parsing):", error);
-      toast({
-        title: 'Processing Error',
-        description: `Failed to process frame: ${error instanceof Error ? error.message : String(error)}. Check console.`,
-        variant: 'destructive'
-      });
+      // Also mark from detected_faces in case already-marked students come through
+      if (result.detected_faces) {
+        const recognisedMatricules = new Set(
+          result.detected_faces
+            .filter(f => f.student)
+            .map(f => f.student!.matricule)
+        );
+        setEnrolledStudents(prev =>
+          prev.map(s =>
+            recognisedMatricules.has(s.matricule) && s.status === 'pending'
+              ? { ...s, status: 'present' }
+              : s
+          )
+        );
+      }
+    } catch (err) {
+      console.error('Capture error:', err);
     }
   }, [courseCode, courseInfo.scheduleId, isWebcamReady]);
 
-  // Toggle capture button logic
-  const toggleCapture = useCallback(() => {
-    if (!isWebcamReady) {
-      // If webcam is not ready, try to initialize it first
-      initializeWebcam().then(() => {
-        // Only start capturing if initialization was successful
-        if (videoRef.current && videoRef.current.readyState >= 3) { // video has enough data to play
-          setIsCapturing(true);
-        } else {
-          toast({
-            title: 'Webcam Init Failed',
-            description: 'Webcam could not be initialized or started properly.',
-            variant: 'destructive'
-          });
-        }
-      });
-    } else {
-      // If webcam is ready, just toggle capturing state
-      setIsCapturing(prev => !prev);
-    }
-  }, [isWebcamReady, initializeWebcam]);
-
-  // Interval for continuous capture
+  // Capture interval
   useEffect(() => {
-    let intervalId: NodeJS.Timeout | null = null;
-    
-    // Only start interval if capturing is enabled AND webcam is ready
-    if (isCapturing && isWebcamReady) {
-      console.log("DEBUG: Starting capture interval.");
-      captureAndProcess(); // Call immediately on start
-      intervalId = setInterval(captureAndProcess, 3000); // Send frame every 3 seconds
+    if (!isCapturing || !isWebcamReady) return;
+    captureAndProcess();
+    const id = setInterval(captureAndProcess, 3000);
+    return () => clearInterval(id);
+  }, [isCapturing, isWebcamReady, captureAndProcess]);
+
+  // When capturing stops, mark all still-pending students as absent
+  const handleStopCapturing = useCallback(() => {
+    setIsCapturing(false);
+    setDetectedFaces([]);
+    setEnrolledStudents(prev =>
+      prev.map(s => s.status === 'pending' ? { ...s, status: 'absent' } : s)
+    );
+  }, []);
+
+  const toggleCapture = useCallback(() => {
+    if (isCapturing) {
+      handleStopCapturing();
+    } else if (!isWebcamReady) {
+      initializeWebcam().then(() => setIsCapturing(true));
     } else {
-        console.log("DEBUG: Stopping capture interval (isCapturing:", isCapturing, "isWebcamReady:", isWebcamReady, ").");
-        // If capturing is turned off or webcam is not ready, clear interval
-        if (intervalId) {
-            clearInterval(intervalId);
-            intervalId = null;
-        }
+      setIsCapturing(true);
     }
+  }, [isCapturing, isWebcamReady, initializeWebcam, handleStopCapturing]);
 
-    // Cleanup function when component unmounts or dependencies change
-    return () => {
-      console.log("DEBUG: Cleanup: Clearing capture interval.");
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [isCapturing, isWebcamReady, captureAndProcess]); // Dependencies for useEffect
-
+  const presentCount = enrolledStudents.filter(s => s.status === 'present').length;
+  const absentCount = enrolledStudents.filter(s => s.status === 'absent').length;
 
   return (
     <div className="p-6 space-y-6">
@@ -1885,77 +1754,55 @@ export default function TakeAttendancePage() {
         <Button variant="outline" size="icon" onClick={() => router.back()}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-2xl font-bold">
-          Take Attendance - {courseInfo.courseCode}
-        </h1>
+        <h1 className="text-2xl font-bold">Take Attendance — {courseInfo.courseCode}</h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Webcam Feed */}
+        {/* Camera feed */}
         <div className="lg:col-span-2 space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Live Recognition</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Live Recognition</CardTitle></CardHeader>
             <CardContent>
               <div className="relative bg-gray-100 rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
-                {/* Webcam video element */}
                 <video
                   ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
+                  autoPlay playsInline muted
                   className={`w-full h-full object-cover ${!isWebcamReady ? 'hidden' : ''}`}
                 />
-
-                {/* Hidden canvas for capture (always rendered but hidden) */}
                 <canvas ref={canvasRef} className="hidden" />
 
-                {/* Loading state or initial state */}
                 {(!isWebcamReady || isLoading) && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-200 text-gray-700">
-                    {isLoading ? (
-                      <p>Initializing webcam...</p>
-                    ) : (
-                      <Button onClick={initializeWebcam} disabled={isLoading}>
-                        Initialize Webcam
-                      </Button>
-                    )}
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-200">
+                    {isLoading
+                      ? <p className="text-gray-600">Initializing webcam...</p>
+                      : <Button onClick={initializeWebcam}>Initialize Webcam</Button>
+                    }
                   </div>
                 )}
-                
-                {/* Face detection boxes */}
-                {/* Ensure video dimensions are used to scale boxes correctly */}
-                {isWebcamReady && detectedFaces.map((face, index) => {
-                  // Scale factors based on video intrinsic size vs. displayed size
-                  const videoElement = videoRef.current;
-                  if (!videoElement) return null; // Should not happen if isWebcamReady is true
 
-                  const videoWidth = videoElement.videoWidth;
-                  const videoHeight = videoElement.videoHeight;
-                  const displayWidth = videoElement.offsetWidth;
-                  const displayHeight = videoElement.offsetHeight;
-
-                  // Calculate actual scaling
-                  const scaleX = displayWidth / videoWidth;
-                  const scaleY = displayHeight / videoHeight;
-
+                {/* Bounding boxes */}
+                {isWebcamReady && detectedFaces.map((face, i) => {
+                  const v = videoRef.current;
+                  if (!v) return null;
+                  const sx = v.offsetWidth / v.videoWidth;
+                  const sy = v.offsetHeight / v.videoHeight;
+                  const isKnown = !!face.student;
                   return (
                     <div
-                      key={`face-${index}`} 
-                      className="absolute border-2 border-green-500"
+                      key={i}
+                      className={`absolute border-2 ${isKnown ? 'border-green-500' : 'border-red-500'}`}
                       style={{
-                        left: `${face.box.left * scaleX}px`,
-                        top: `${face.box.top * scaleY}px`,
-                        width: `${(face.box.right - face.box.left) * scaleX}px`,
-                        height: `${(face.box.bottom - face.box.top) * scaleY}px`
+                        left: face.box.left * sx,
+                        top: face.box.top * sy,
+                        width: (face.box.right - face.box.left) * sx,
+                        height: (face.box.bottom - face.box.top) * sy,
                       }}
                     >
-                      {face.student && (
-                        <div className="absolute -top-6 left-0 bg-green-500 text-white text-xs px-2 py-1 rounded">
-                          {face.student.name} {/* Use face.student.name */}
-                        </div>
-                      )}
+                      <span className={`absolute -top-6 left-0 text-white text-xs px-2 py-0.5 rounded ${
+                        isKnown ? 'bg-green-500' : 'bg-red-500'
+                      }`}>
+                        {isKnown ? face.student!.name : 'Unknown'}
+                      </span>
                     </div>
                   );
                 })}
@@ -1963,25 +1810,23 @@ export default function TakeAttendancePage() {
             </CardContent>
           </Card>
 
-          <div className="flex justify-center">
-            <Button
-              onClick={toggleCapture}
-              disabled={isLoading || !isWebcamReady} // Disable if initializing or webcam not ready
-              className="w-full sm:w-auto"
-              size="lg"
-            >
-              {isCapturing ? 'Stop Capturing' : 'Start Capturing'}
-            </Button>
-          </div>
+          <Button
+            onClick={toggleCapture}
+            disabled={isLoading}
+            className={`w-full py-6 text-lg ${
+              isCapturing ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
+            }`}
+          >
+            {isCapturing ? 'Stop Capturing' : 'Start Capturing'}
+          </Button>
         </div>
 
-        {/* Attendance Results */}
+        {/* Right panel */}
         <div className="space-y-4">
+          {/* Course info */}
           <Card>
-            <CardHeader>
-              <CardTitle>Class Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
+            <CardHeader><CardTitle>Class Information</CardTitle></CardHeader>
+            <CardContent className="space-y-1 text-sm">
               <p><strong>Course:</strong> {courseInfo.courseName} ({courseInfo.courseCode})</p>
               <p><strong>Time:</strong> {courseInfo.dayTime}</p>
               <p><strong>Location:</strong> {courseInfo.location}</p>
@@ -1989,87 +1834,84 @@ export default function TakeAttendancePage() {
             </CardContent>
           </Card>
 
+          {/* Summary counts */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-green-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-green-600 font-medium">Present</p>
+              <p className="text-2xl font-bold text-green-700">{presentCount}</p>
+            </div>
+            <div className="bg-red-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-red-600 font-medium">Absent</p>
+              <p className="text-2xl font-bold text-red-700">{absentCount}</p>
+            </div>
+            <div className="bg-yellow-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-yellow-600 font-medium">Unknown</p>
+              <p className="text-2xl font-bold text-yellow-700">{unrecognizedCount}</p>
+            </div>
+          </div>
+
+          {/* Full student list */}
           <Card>
             <CardHeader>
-              <CardTitle>Attendance Sheet for {courseInfo.courseCode}</CardTitle> {/* New title */}
+              <CardTitle>Attendance Sheet</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <p className="text-sm text-green-600">Recognized</p>
-                    <p className="text-2xl font-bold">{attendanceRecords.length}</p>
-                  </div>
-                  <div className="bg-yellow-50 p-4 rounded-lg">
-                    <p className="text-sm text-yellow-600">Unrecognized</p>
-                    <p className="text-2xl font-bold">
-                      {/* Filter detectedFaces to count only those without a student (unrecognized) */}
-                      {detectedFaces.filter(f => !f.student).length}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <h3 className="font-medium">Marked Attendance</h3>
-                  <div className="border rounded-lg max-h-96 overflow-y-auto"> {/* Increased max-height */}
-                    {attendanceRecords.length > 0 ? (
-                      <Table> {/* Use Shadcn Table components */}
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Matricule</TableHead>
-                            <TableHead>Student Name</TableHead>
-                            <TableHead className="text-center">Status</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {attendanceRecords.map((record) => (
-                            <TableRow key={record.matricule}>
-                              <TableCell className="font-medium">{record.matricule}</TableCell>
-                              <TableCell>{record.student_name}</TableCell>
-                              <TableCell className="text-center">
-                                {record.status === 'PRESENT' ? (
-                                  <CheckCircle2 className="h-5 w-5 text-green-500 mx-auto" />
-                                ) : record.status === 'ABSENT' ? (
-                                  <XCircle className="h-5 w-5 text-red-500 mx-auto" />
-                                ) : (
-                                  <AlertCircle className="h-5 w-5 text-yellow-500 mx-auto" /> // For 'LATE' or other statuses
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+            <CardContent className="p-0">
+              <div className="max-h-96 overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Matricule</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead className="text-center w-12">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {enrolledStudents.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center text-gray-400 py-6">
+                          Loading students...
+                        </TableCell>
+                      </TableRow>
                     ) : (
-                      <div className="p-4 text-center text-gray-500">
-                        No attendance marked yet
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <h3 className="font-medium">Unrecognized Faces (Not in this Course)</h3> {/* More descriptive title */}
-                  <div className="border rounded-lg divide-y max-h-64 overflow-y-auto">
-                    {detectedFaces.filter(f => !f.student).length > 0 ? (
-                      detectedFaces.filter(f => !f.student).map((face, index) => ( // Use 'face' to potentially show box later
-                        <div key={`unrecognized-${index}`} className="p-3 flex items-center gap-3">
-                          <AlertCircle className="h-5 w-5 text-yellow-500" />
-                          <div>
-                            <p className="font-medium">Unknown Face</p>
-                            <p className="text-sm text-gray-500">Not recognized or not enrolled</p>
-                          </div>
-                        </div>
+                      enrolledStudents.map(student => (
+                        <TableRow key={student.matricule}>
+                          <TableCell className="font-mono text-xs">{student.matricule}</TableCell>
+                          <TableCell>{student.name}</TableCell>
+                          <TableCell className="text-center">
+                            {student.status === 'present' && (
+                              <CheckCircle2 className="h-5 w-5 text-green-500 mx-auto" />
+                            )}
+                            {student.status === 'absent' && (
+                              <XCircle className="h-5 w-5 text-red-500 mx-auto" />
+                            )}
+                            {student.status === 'pending' && (
+                              <Clock className="h-5 w-5 text-gray-300 mx-auto" />
+                            )}
+                          </TableCell>
+                        </TableRow>
                       ))
-                    ) : (
-                      <div className="p-4 text-center text-gray-500">
-                        No unrecognized faces detected
-                      </div>
                     )}
-                  </div>
-                </div>
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>
+
+          {/* Unrecognized faces section */}
+          {unrecognizedCount > 0 && (
+            <Card>
+              <CardHeader><CardTitle>Unrecognized Faces</CardTitle></CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg">
+                  <AlertCircle className="h-6 w-6 text-yellow-500 shrink-0" />
+                  <p className="text-sm text-yellow-800">
+                    <strong>{unrecognizedCount}</strong> face{unrecognizedCount > 1 ? 's' : ''} detected
+                    that could not be matched to any registered student.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

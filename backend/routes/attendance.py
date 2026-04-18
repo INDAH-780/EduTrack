@@ -1002,8 +1002,9 @@ def mark_attendance():
                 'total_detected_students': len(result.get('detected_students', [])), 
                 'recognized_and_enrolled_students': len(recorded_attendance_data),
                 'unrecognized_faces': result.get('unrecognized_faces', []), 
+                'detected_faces': result.get('detected_faces', []),
                 'attendance_records_created': recorded_attendance_data,
-                'annotated_image': annotated_image_base64 # Use the Base64 encoded string here
+                'annotated_image': annotated_image_base64
             }), 200
         
         except Exception as e: # This inner try-except catches errors within the processing logic

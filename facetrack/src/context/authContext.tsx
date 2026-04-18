@@ -215,7 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (credentials: LoginCredentials) => {
     try {
       setLoading(true);
-      const response = await axios.post("http://127.0.0.1:5000/api/auth/login", credentials);
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000'}/api/auth/login`, credentials);
       const { access_token, user, user_type } = response.data;
 
       const authState = { token: access_token, user, userType: user_type };
