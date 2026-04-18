@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { usePathname } from "next/navigation"
-import { Sidebar } from "@/components/sidebar"
+import Sidebar from "@/components/sidebar"
 import { ThemeProvider } from "@/components/theme-provider"
 import { useAuth } from "@/context/authContext"
 
