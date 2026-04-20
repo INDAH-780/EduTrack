@@ -3,12 +3,10 @@
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useCallback, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
-// Added XCircle for Absent status visual
 import { ChevronLeft, CheckCircle2, AlertCircle, XCircle } from 'lucide-react'; 
 import { useAuth } from '@/context/authContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/components/ui/use-toast';
-// Import table components
 import {
   Table,
   TableBody,
@@ -17,6 +15,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { getAuthToken } from '@/lib/auth';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
 
 
 // Type definitions
@@ -360,7 +361,7 @@ function TakeAttendanceContent() {
 
   const captureAndProcess = useCallback(async () => {
     const canvas = canvasRef.current;
-    const accessToken = localStorage.getItem('access_token');
+    const accessToken = getAuthToken();
     if (!accessToken) {
         console.error("Frontend: No access token found. Cannot send attendance data.");
         toast({
@@ -423,14 +424,14 @@ function TakeAttendanceContent() {
       console.log("DEBUG: Appended schedule_id:", courseInfo.scheduleId.toString());
 
       console.log("Frontend DEBUG: Sending Request to Backend (Multipart/Form-Data):");
-      console.log("  URL:", 'http://127.0.0.1:5000/api/attendance/mark');
+      console.log("  URL:", `${API_URL}/api/attendance/mark`);
       console.log("  Method:", 'POST');
       console.log("  Headers (note: Content-Type is auto-set by browser for FormData):", {
           'Authorization': `Bearer ${accessToken}`
       });
       
 
-      const response = await fetch('http://127.0.0.1:5000/api/attendance/mark', {
+      const response = await fetch(`${API_URL}/api/attendance/mark`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}` 

@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     const { username, password } = await request.json();
 
     // 1. Forward request to your actual backend API
-    const backendResponse = await fetch('http://127.0.0.1:5000/api/auth/login', {
+    const backendResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000'}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
