@@ -15,19 +15,13 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (!loading) {
-      // Match the actual folder structure
-      const expectedPath = userType ? `/(dashboard)/${userType}/dashboard` : null
-      
       if (!isAuthenticated) {
         router.push('/login')
-      } 
-      // Check if current path doesn't match expected structure
-      else if (expectedPath && !pathname.startsWith(`/(dashboard)/${userType}`)) {
-        console.log(`Redirecting to: ${expectedPath}`)
-        router.push(expectedPath)
+      } else if (userType && !pathname.startsWith(`/dashboard/${userType}`)) {
+        router.push(`/dashboard/${userType}`)
       }
     }
-  }, [isAuthenticated, loading, pathname, userType])
+  }, [isAuthenticated, loading, pathname, userType, router])
 
   if (loading || !isAuthenticated) {
     return <div>Loading...</div>

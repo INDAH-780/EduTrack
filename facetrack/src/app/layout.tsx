@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/authContext";
-import SidebarWrapper from "@/components/sidebar-wrapper"; // Changed import
+import SidebarWrapper from "@/components/sidebar-wrapper";
+import MainWrapper from "@/components/main-wrapper";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -22,11 +23,8 @@ export default function RootLayout({
       <body className="min-h-screen bg-background font-sans antialiased">
         <AuthProvider>
           <div className="flex h-screen">
-            {/* Use the client-side wrapper */}
             <SidebarWrapper />
-            <div className="flex-1 overflow-auto ml-64">
-              {children}
-            </div>
+            <MainWrapper>{children}</MainWrapper>
           </div>
         </AuthProvider>
       </body>

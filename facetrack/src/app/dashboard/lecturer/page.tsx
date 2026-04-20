@@ -1,246 +1,200 @@
-
-
 'use client';
 
 import { useAuth } from "@/context/authContext";
-import { BookOpen, Users, Clock, CheckCircle, Camera, AlertCircle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BookOpen, Users, CheckCircle, AlertCircle, LogOut } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FacialRecognitionStatus } from "@/components/lecturer/facial-recognition-status";
-import { LecturerCoursesTable } from "@/components/lecturer/lecturer-courses-table";
-import { LecturerAttendanceChart } from "@/components/lecturer/lecturer-attendance-chart";
-import { RecentAttendanceSessions } from "@/components/lecturer/recent-attendance-session";
-import { fetchCourses } from "@/lib/api";
-import { Loader2 } from "lucide-react";
+import { getAuthToken } from "@/lib/auth";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  LineChart, Line, ResponsiveContainer
+} from "recharts";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
+
+type Course = {
+  course_code: string;
+  course_name: string;
+  department: string;
+  level: string;
+  semester: string;
+  total_enrolled_students: number;
+  lecturer_id: string;
+};
 
 export default function LecturerDashboard() {
   const { user, userType, logout, isAuthenticated } = useAuth();
   const router = useRouter();
-  const [stats, setStats] = useState({
-    courses: 0,
-    totalStudents: 0,
-    attendanceRate: 0,
-    pendingAttendance: 0,
-    recognitionAccuracy: 0,
-    loading: true
-  });
+
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [stats, setStats] = useState({ courses: 0, totalStudents: 0, attendanceRate: 0, totalRecords: 0, loading: true });
+  const [byCourse, setByCourse] = useState<any[]>([]);
+  const [dailyTrend, setDailyTrend] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push("/login");
-    } else if (userType !== "lecturer") {
-      logout();
-      router.push("/login");
-    }
+    if (!isAuthenticated) router.push("/login");
+    else if (userType !== "lecturer") { logout(); router.push("/login"); }
   }, [isAuthenticated, userType, router, logout]);
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const courses = await fetchCourses();
-        const lecturerCourses = courses.filter(course => course.lecturer_id === user?.lecturer_id);
-        
-        const totalStudents = lecturerCourses.reduce(
-          (sum, course) => sum + course.total_enrolled_students, 0
-        );
-        
-        // Calculate attendance rate (you'll need to implement this based on your API)
-        const attendanceRate = lecturerCourses.length > 0 ? 
-          lecturerCourses.reduce((sum, course) => sum + (course.attendance_rate || 0), 0) / lecturerCourses.length :
-          0;
+    if (!isAuthenticated || userType !== "lecturer") return;
+    const token = getAuthToken();
+    const headers = { Authorization: `Bearer ${token}` };
+    const lecturerId = (user as any)?.lecturer_id;
 
-        setStats({
-          courses: lecturerCourses.length,
-          totalStudents,
-          attendanceRate,
-          pendingAttendance: lecturerCourses.filter(c => c.pending_attendance).length,
-          recognitionAccuracy: 96.2, // You'll need to fetch this from your API
-          loading: false
-        });
-      } catch (error) {
-        console.error("Failed to fetch stats:", error);
-        setStats(prev => ({ ...prev, loading: false }));
-      }
-    };
+    fetch(`${API_URL}/api/courses`, { headers }).then(r => r.json())
+      .then((all: Course[]) => {
+        const mine = all.filter(c => c.lecturer_id === lecturerId);
+        setCourses(mine);
+        const totalStudents = mine.reduce((s, c) => s + (c.total_enrolled_students || 0), 0);
+        setStats(p => ({ ...p, courses: mine.length, totalStudents }));
+      }).catch(console.error);
 
-    if (isAuthenticated && userType === "lecturer") {
-      fetchStats();
-    }
-  }, [isAuthenticated, userType, user?.lecturer_id]);
+    fetch(`${API_URL}/api/reports/stats`, { headers }).then(r => r.json())
+      .then(data => setStats(p => ({ ...p, attendanceRate: data.attendance_rate || 0, totalRecords: data.total_attendance_records || 0, loading: false })))
+      .catch(() => setStats(p => ({ ...p, loading: false })));
 
-  if (!isAuthenticated || userType !== "lecturer") {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <p>Redirecting to login...</p>
-      </div>
-    );
-  }
+    fetch(`${API_URL}/api/reports/chart/by-course`, { headers }).then(r => r.json())
+      .then(setByCourse).catch(console.error);
 
-  const lecturerId = user?.lecturer_id || '';
+    fetch(`${API_URL}/api/reports/chart/daily-trend`, { headers }).then(r => r.json())
+      .then(setDailyTrend).catch(console.error);
+  }, [isAuthenticated, userType, user]);
+
+  if (!isAuthenticated || userType !== "lecturer") return <div className="flex items-center justify-center h-screen"><p>Redirecting...</p></div>;
+
+  // Filter charts to only show lecturer's own courses
+  const myCodes = new Set(courses.map(c => c.course_code));
+  const myByCourse = byCourse.filter(d => myCodes.has(d.course));
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-gray-50">
-      {/* Header */}
-      <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-white px-6 shadow-sm">
+      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-white px-6 shadow-sm">
         <h1 className="text-xl font-semibold">Lecturer Portal</h1>
         <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-600">
-            Welcome, <span className="font-medium">{user?.name || 'Lecturer'}</span>
-          </span>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={logout}
-            className="flex items-center gap-2 text-gray-600 hover:bg-gray-100"
-          >
-            <LogOut className="h-4 w-4" />
-            Sign Out
+          <span className="text-sm text-gray-600">Welcome, <span className="font-medium">{user?.name || 'Lecturer'}</span></span>
+          <Button variant="ghost" size="sm" onClick={logout} className="flex items-center gap-2">
+            <LogOut className="h-4 w-4" /> Sign Out
           </Button>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="flex-1 p-6 space-y-6">
-        {/* Quick Stats */}
-        {stats.loading ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {[...Array(4)].map((_, i) => (
-              <Card key={i} className="shadow-sm">
-                <CardHeader className="flex flex-row items-center justify-between pb-3">
-                  <div className="h-4 w-24 bg-gray-200 rounded animate-pulse"></div>
-                  <div className="h-5 w-5 bg-gray-200 rounded animate-pulse"></div>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mb-2"></div>
-                  <div className="h-3 w-32 bg-gray-200 rounded animate-pulse"></div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard 
-              title="Your Courses" 
-              value={stats.courses.toString()} 
-              icon={<BookOpen className="h-5 w-5 text-blue-500" />}
-              description="Current semester"
-            />
-            <StatCard 
-              title="Total Students" 
-              value={stats.totalStudents.toString()} 
-              icon={<Users className="h-5 w-5 text-green-500" />}
-              description="Across all courses"
-            />
-            <StatCard 
-              title="Attendance Rate" 
-              value={`${stats.attendanceRate.toFixed(1)}%`} 
-              icon={<CheckCircle className="h-5 w-5 text-purple-500" />}
-              description="Last 30 days"
-              valueClassName={stats.attendanceRate > 85 ? "text-green-600" : "text-yellow-600"}
-            />
-            <StatCard 
-              title="Pending Attendance" 
-              value={stats.pendingAttendance.toString()} 
-              icon={<AlertCircle className="h-5 w-5 text-orange-500" />}
-              description="Requires your action"
-              valueClassName="text-orange-600"
-            />
-          </div>
-        )}
-
-        {/* Facial Recognition Status */}
-        <FacialRecognitionStatus accuracy={stats.recognitionAccuracy} />
-
-        {/* Two Column Layout */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Left Column - Courses and Attendance */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Courses Table */}
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-blue-500" />
-                  Your Courses
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <LecturerCoursesTable lecturerId={lecturerId} />
-              </CardContent>
-            </Card>
-
-            {/* Attendance Analytics */}
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-purple-500" />
-                  Attendance Analytics
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <LecturerAttendanceChart  />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Column - Quick Actions and Recent Sessions */}
-          <div className="space-y-6">
-            {/* Quick Actions */}
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-orange-500" />
-                  Quick Actions
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button className="w-full" variant="default">
-                  <Camera className="mr-2 h-4 w-4" />
-                  Take Attendance Now
-                </Button>
-                <Button className="w-full" variant="outline">
-                  View Today's Schedule
-                </Button>
-                <Button className="w-full" variant="outline">
-                  Generate Attendance Report
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Recent Attendance Sessions */}
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                  Recent Sessions
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <RecentAttendanceSessions />
-              </CardContent>
-            </Card>
-          </div>
+        {/* Stats */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <StatCard title="Your Courses" value={stats.loading ? "—" : stats.courses.toString()} icon={<BookOpen className="h-5 w-5 text-blue-500" />} description="Current semester" />
+          <StatCard title="Total Students" value={stats.loading ? "—" : stats.totalStudents.toString()} icon={<Users className="h-5 w-5 text-green-500" />} description="Across all your courses" />
+          <StatCard title="Attendance Rate" value={stats.loading ? "—" : `${stats.attendanceRate}%`} icon={<CheckCircle className="h-5 w-5 text-purple-500" />} description="All time" valueClassName={stats.attendanceRate >= 75 ? "text-green-600" : "text-red-600"} />
+          <StatCard title="Attendance Records" value={stats.loading ? "—" : stats.totalRecords.toString()} icon={<AlertCircle className="h-5 w-5 text-orange-500" />} description="Total sessions recorded" />
         </div>
+
+        {/* Charts */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Daily Attendance Trend</CardTitle>
+              <CardDescription>Last 14 days — all courses</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {dailyTrend.length === 0 ? (
+                <div className="flex items-center justify-center h-48 text-gray-400 text-sm">No attendance data yet</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={250}>
+                  <LineChart data={dailyTrend}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={d => d.slice(5)} />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="present" stroke="#22c55e" strokeWidth={2} dot={false} name="Present" />
+                    <Line type="monotone" dataKey="absent" stroke="#ef4444" strokeWidth={2} dot={false} name="Absent" />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Attendance by Your Courses</CardTitle>
+              <CardDescription>Present vs Absent per course</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {myByCourse.length === 0 ? (
+                <div className="flex items-center justify-center h-48 text-gray-400 text-sm">No attendance data yet</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={myByCourse}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="course" tick={{ fontSize: 11 }} />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip labelFormatter={label => {
+                      const item = myByCourse.find(c => c.course === label);
+                      return item ? `${item.course_name} (${label})` : label;
+                    }} />
+                    <Legend />
+                    <Bar dataKey="present" fill="#22c55e" name="Present" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="absent" fill="#ef4444" name="Absent" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Courses table */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-blue-500" /> Your Courses
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {courses.length === 0 && !stats.loading ? (
+              <p className="text-sm text-gray-500 text-center py-6">No courses assigned to you yet.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Code</TableHead>
+                    <TableHead>Course Name</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Level</TableHead>
+                    <TableHead>Semester</TableHead>
+                    <TableHead className="text-center">Students</TableHead>
+                    <TableHead className="text-center">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {courses.map(course => (
+                    <TableRow key={course.course_code}>
+                      <TableCell className="font-mono text-xs">{course.course_code}</TableCell>
+                      <TableCell className="font-medium">{course.course_name}</TableCell>
+                      <TableCell>{course.department}</TableCell>
+                      <TableCell>{course.level}</TableCell>
+                      <TableCell>{course.semester}</TableCell>
+                      <TableCell className="text-center">{course.total_enrolled_students}</TableCell>
+                      <TableCell className="text-center">
+                        <Button size="sm" onClick={() => router.push(`/take-attendance/${course.course_code}`)}>
+                          Take Attendance
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       </main>
     </div>
   );
 }
 
-function StatCard({
-  title,
-  value,
-  description,
-  icon,
-  valueClassName = ""
-}: {
-  title: string;
-  value: string;
-  description: string;
-  icon: React.ReactNode;
-  valueClassName?: string;
-}) {
+function StatCard({ title, value, description, icon, valueClassName = "" }: { title: string; value: string; description: string; icon: React.ReactNode; valueClassName?: string }) {
   return (
     <Card className="shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between pb-3">

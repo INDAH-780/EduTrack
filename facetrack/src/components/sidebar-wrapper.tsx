@@ -2,6 +2,8 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { usePathname } from 'next/navigation';
+import { useAuth } from '@/context/authContext';
 
 const Sidebar = dynamic(() => import('@/components/sidebar'), {
   ssr: false,
@@ -17,6 +19,15 @@ const Sidebar = dynamic(() => import('@/components/sidebar'), {
   )
 });
 
+const PUBLIC_PATHS = ['/login', '/forgot-password', '/reset-password'];
+
 export default function SidebarWrapper() {
+  const pathname = usePathname();
+  const { isAuthenticated, loading } = useAuth();
+
+  const isPublicPage = PUBLIC_PATHS.some(p => pathname.startsWith(p));
+
+  if (isPublicPage || !isAuthenticated || loading) return null;
+
   return <Sidebar />;
 }
