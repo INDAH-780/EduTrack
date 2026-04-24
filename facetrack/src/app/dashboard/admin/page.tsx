@@ -75,7 +75,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               {dailyTrend.length === 0 ? (
-                <div className="flex items-center justify-center h-48 text-gray-400 text-sm">No attendance data yet</div>
+                <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">No attendance data yet</div>
               ) : (
                 <ResponsiveContainer width="100%" height={250}>
                   <LineChart data={dailyTrend}>
@@ -100,7 +100,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               {byCourse.length === 0 ? (
-                <div className="flex items-center justify-center h-48 text-gray-400 text-sm">No attendance data yet</div>
+                <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">No attendance data yet</div>
               ) : (
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={byCourse}>

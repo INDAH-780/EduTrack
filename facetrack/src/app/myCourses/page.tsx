@@ -37,19 +37,19 @@ export default function MyCoursesPage() {
   const lecturerId = user?.lecturer_id || '';
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-gray-50">
+    <div className="flex min-h-screen w-full flex-col bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-white px-6 shadow-sm">
+      <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-background px-6 shadow-sm">
         <h1 className="text-xl font-semibold">Lecturer Portal</h1>
         <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-muted-foreground">
             Welcome, <span className="font-medium">{user?.name || 'Lecturer'}</span>
           </span>
           <Button 
             variant="ghost" 
             size="sm" 
             onClick={logout}
-            className="flex items-center gap-2 text-gray-600 hover:bg-gray-100"
+            className="flex items-center gap-2 text-muted-foreground hover:bg-muted"
           >
             <LogOut className="h-4 w-4" />
             Sign Out
@@ -69,7 +69,7 @@ export default function MyCoursesPage() {
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             {/* Search */}
             <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search courses..."
                 className="pl-10"
@@ -82,7 +82,7 @@ export default function MyCoursesPage() {
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full sm:w-40">
                 <div className="flex items-center gap-2">
-                  <Filter className="h-4 w-4 text-gray-400" />
+                  <Filter className="h-4 w-4 text-muted-foreground" />
                   <SelectValue placeholder="Filter status" />
                 </div>
               </SelectTrigger>
@@ -151,18 +151,18 @@ export default function MyCoursesPage() {
 //   const lecturerId = user?.lecturer_id || '';
 
 //   return (
-//     <div className="flex min-h-screen w-full flex-col bg-gray-50">
-//       <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-white px-6 shadow-sm">
+//     <div className="flex min-h-screen w-full flex-col bg-background">
+//       <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-background px-6 shadow-sm">
 //         <h1 className="text-xl font-semibold">Lecturer Portal</h1>
 //         <div className="flex items-center gap-4">
-//           <span className="text-sm text-gray-600">
+//           <span className="text-sm text-muted-foreground">
 //             Welcome, <span className="font-medium">{user?.name || 'Lecturer'}</span>
 //           </span>
 //           <Button 
 //             variant="ghost" 
 //             size="sm" 
 //             onClick={logout}
-//             className="flex items-center gap-2 text-gray-600 hover:bg-gray-100"
+//             className="flex items-center gap-2 text-muted-foreground hover:bg-muted"
 //           >
 //             <LogOut className="h-4 w-4" />
 //             Sign Out
@@ -179,7 +179,7 @@ export default function MyCoursesPage() {
           
 //           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
 //             <div className="relative w-full sm:w-64">
-//               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+//               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 //               <Input
 //                 placeholder="Search courses..."
 //                 className="pl-10"
@@ -191,7 +191,7 @@ export default function MyCoursesPage() {
 //             <Select value={statusFilter} onValueChange={setStatusFilter}>
 //               <SelectTrigger className="w-full sm:w-40">
 //                 <div className="flex items-center gap-2">
-//                   <Filter className="h-4 w-4 text-gray-400" />
+//                   <Filter className="h-4 w-4 text-muted-foreground" />
 //                   <SelectValue placeholder="Filter status" />
 //                 </div>
 //               </SelectTrigger>

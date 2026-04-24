@@ -730,7 +730,7 @@
 //               <div className="relative">
 //                 {/* Show loading text if isLoading is true */}
 //                 {isLoading && (
-//                   <div className="flex items-center justify-center h-64 bg-gray-100 rounded-lg">
+//                   <div className="flex items-center justify-center h-64 bg-muted rounded-lg">
 //                     <p>Initializing video stream from IP camera...</p>
 //                   </div>
 //                 )}
@@ -825,12 +825,12 @@
 //                           <CheckCircle2 className="h-5 w-5 text-green-500" />
 //                           <div>
 //                             <p className="font-medium">{record.student.student_name}</p>
-//                             <p className="text-sm text-gray-500">{record.student.student_matricule}</p>
+//                             <p className="text-sm text-muted-foreground">{record.student.student_matricule}</p>
 //                           </div>
 //                         </div>
 //                       ))
 //                     ) : (
-//                       <div className="p-4 text-center text-gray-500">
+//                       <div className="p-4 text-center text-muted-foreground">
 //                         No attendance marked yet
 //                       </div>
 //                     )}
@@ -846,12 +846,12 @@
 //                           <AlertCircle className="h-5 w-5 text-yellow-500" />
 //                           <div>
 //                             <p className="font-medium">Unknown Face</p>
-//                             <p className="text-sm text-gray-500">Not recognized</p>
+//                             <p className="text-sm text-muted-foreground">Not recognized</p>
 //                           </div>
 //                         </div>
 //                       ))
 //                     ) : (
-//                       <div className="p-4 text-center text-gray-500">
+//                       <div className="p-4 text-center text-muted-foreground">
 //                         No unrecognized faces
 //                       </div>
 //                     )}
@@ -1410,7 +1410,7 @@
 //               <div className="relative">
 //                 {/* Show loading placeholder if still loading */}
 //                 {isLoading && (
-//                   <div className="flex items-center justify-center h-64 bg-gray-100 rounded-lg">
+//                   <div className="flex items-center justify-center h-64 bg-muted rounded-lg">
 //                     <p>Initializing video stream from IP camera...</p>
 //                   </div>
 //                 )}
@@ -1776,7 +1776,7 @@ export default function TakeAttendancePage() {
           <Card>
             <CardHeader><CardTitle>Live Recognition</CardTitle></CardHeader>
             <CardContent>
-              <div className="relative bg-gray-100 rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
+              <div className="relative bg-muted rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
                 <video
                   ref={videoRef}
                   autoPlay playsInline muted
@@ -1785,9 +1785,9 @@ export default function TakeAttendancePage() {
                 <canvas ref={canvasRef} className="hidden" />
 
                 {(!isWebcamReady || isLoading) && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-200">
+                  <div className="absolute inset-0 flex items-center justify-center bg-muted">
                     {isLoading
-                      ? <p className="text-gray-600">Initializing webcam...</p>
+                      ? <p className="text-muted-foreground">Initializing webcam...</p>
                       : <Button onClick={initializeWebcam}>Initialize Webcam</Button>
                     }
                   </div>
@@ -1849,15 +1849,15 @@ export default function TakeAttendancePage() {
 
           {/* Summary counts */}
           <div className="grid grid-cols-3 gap-2">
-            <div className="bg-green-50 rounded-lg p-3 text-center">
+            <div className="bg-green-50 dark:bg-green-950/30 rounded-lg p-3 text-center">
               <p className="text-xs text-green-600 font-medium">Present</p>
               <p className="text-2xl font-bold text-green-700">{presentCount}</p>
             </div>
-            <div className="bg-red-50 rounded-lg p-3 text-center">
+            <div className="bg-red-50 dark:bg-red-950/30 rounded-lg p-3 text-center">
               <p className="text-xs text-red-600 font-medium">Absent</p>
               <p className="text-2xl font-bold text-red-700">{absentCount}</p>
             </div>
-            <div className="bg-yellow-50 rounded-lg p-3 text-center">
+            <div className="bg-yellow-50 dark:bg-yellow-950/30 rounded-lg p-3 text-center">
               <p className="text-xs text-yellow-600 font-medium">Unknown</p>
               <p className="text-2xl font-bold text-yellow-700">{unrecognizedCount}</p>
             </div>
@@ -1881,7 +1881,7 @@ export default function TakeAttendancePage() {
                   <TableBody>
                     {enrolledStudents.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={3} className="text-center text-gray-400 py-6">
+                        <TableCell colSpan={3} className="text-center text-muted-foreground py-6">
                           Loading students...
                         </TableCell>
                       </TableRow>
@@ -1915,7 +1915,7 @@ export default function TakeAttendancePage() {
             <Card>
               <CardHeader><CardTitle>Unrecognized Faces</CardTitle></CardHeader>
               <CardContent>
-                <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg">
+                <div className="flex items-center gap-3 p-3 bg-yellow-50 dark:bg-yellow-950/30 rounded-lg">
                   <AlertCircle className="h-6 w-6 text-yellow-500 shrink-0" />
                   <p className="text-sm text-yellow-800">
                     <strong>{unrecognizedCount}</strong> face{unrecognizedCount > 1 ? 's' : ''} detected

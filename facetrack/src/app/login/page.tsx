@@ -55,26 +55,26 @@ export default function LoginPage() {
   // Full-screen spinner shown after clicking Sign In
   if (isSubmitting) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100 gap-4">
-        <svg className="animate-spin h-12 w-12 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+        <svg className="animate-spin h-12 w-12 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
         </svg>
-        <p className="text-blue-600 font-medium text-lg">Signing in...</p>
+        <p className="text-primary font-medium text-lg">Signing in...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-gray-100">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
       <div className="w-full max-w-md">
-        <Card className="shadow-2xl border-0">
+        <Card className="shadow-2xl">
           <CardHeader className="text-center space-y-4">
-            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100">
-              <Lock className="h-8 w-8 text-blue-600" />
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-primary/10">
+              <Lock className="h-8 w-8 text-primary" />
             </div>
-            <CardTitle className="text-3xl font-bold text-gray-900">Welcome to EduTrack</CardTitle>
-            <CardDescription className="text-gray-600 mt-2">
+            <CardTitle className="text-3xl font-bold">Welcome to EduTrack</CardTitle>
+            <CardDescription className="mt-2">
               Facial Recognition Attendance System
             </CardDescription>
           </CardHeader>
@@ -119,22 +119,22 @@ export default function LoginPage() {
                     id="remember-me"
                     name="remember-me"
                     type="checkbox"
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-primary focus:ring-primary border-border rounded"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
                     disabled={loading}
                   />
-                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
+                  <label htmlFor="remember-me" className="ml-2 block text-sm text-muted-foreground">
                     Remember me
                   </label>
                 </div>
-                <a href="/forgot-password" className="text-sm text-blue-600 hover:text-blue-500">
+                <a href="/forgot-password" className="text-sm text-primary hover:opacity-80">
                   Forgot password?
                 </a>
               </div>
               <Button
                 type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 py-6 text-lg"
+                className="w-full py-6 text-lg"
                 disabled={loading}
               >
                 Sign In
@@ -143,16 +143,16 @@ export default function LoginPage() {
             <div className="mt-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300" />
+                  <div className="w-full border-t border-border" />
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">Don't have an account?</span>
+                  <span className="px-2 bg-card text-muted-foreground">Don't have an account?</span>
                 </div>
               </div>
               <div className="mt-6">
                 <Button
                   variant="outline"
-                  className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 py-6 text-lg"
+                  className="w-full py-6 text-lg"
                   disabled={loading}
                   onClick={() => router.push("/request-access")}
                 >

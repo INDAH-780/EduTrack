@@ -80,7 +80,7 @@ export default function SchedulesPage() {
             Add Schedule
           </Button>
         </div>
-        <div className="rounded-md border h-96 animate-pulse bg-gray-100"></div>
+        <div className="rounded-md border h-96 animate-pulse bg-muted"></div>
       </div>
     );
   }

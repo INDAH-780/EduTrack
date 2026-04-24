@@ -99,10 +99,10 @@ export default function CoursesPage() {
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-32 bg-gray-100 rounded-lg animate-pulse"></div>
+            <div key={i} className="h-32 bg-muted rounded-lg animate-pulse"></div>
           ))}
         </div>
-        <div className="rounded-md border h-64 animate-pulse bg-gray-100"></div>
+        <div className="rounded-md border h-64 animate-pulse bg-muted"></div>
       </div>
     );
   }

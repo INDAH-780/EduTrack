@@ -177,8 +177,8 @@ export default function AdminReportsPage() {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-gray-50">
-      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-white px-6 shadow-sm">
+    <div className="flex min-h-screen w-full flex-col bg-background">
+      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background px-6 shadow-sm">
         <h1 className="text-xl font-semibold">Attendance Reports</h1>
       </header>
 
@@ -210,28 +210,28 @@ export default function AdminReportsPage() {
         </Card>
 
         {loading && (
-          <div className="flex items-center justify-center py-16 gap-2 text-gray-500">
+          <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" /> Loading sessions...
           </div>
         )}
 
         {!loading && selectedCourse && sessions.length === 0 && (
-          <p className="text-center text-gray-400 py-10">No attendance records found for this course.</p>
+          <p className="text-center text-muted-foreground py-10">No attendance records found for this course.</p>
         )}
 
         {!loading && sessions.length > 0 && courseInfo && (
           <div className="grid gap-4 md:grid-cols-3">
             <Card>
-              <CardHeader className="pb-1"><CardTitle className="text-sm text-gray-500">Course</CardTitle></CardHeader>
-              <CardContent><div className="text-xl font-bold">{courseInfo.course_code}</div><p className="text-xs text-gray-400">{courseInfo.course_name}</p></CardContent>
+              <CardHeader className="pb-1"><CardTitle className="text-sm text-muted-foreground">Course</CardTitle></CardHeader>
+              <CardContent><div className="text-xl font-bold">{courseInfo.course_code}</div><p className="text-xs text-muted-foreground">{courseInfo.course_name}</p></CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-1"><CardTitle className="text-sm text-gray-500">Total Sessions</CardTitle></CardHeader>
-              <CardContent><div className="text-2xl font-bold">{sessions.length}</div><p className="text-xs text-gray-400">Recorded class sessions</p></CardContent>
+              <CardHeader className="pb-1"><CardTitle className="text-sm text-muted-foreground">Total Sessions</CardTitle></CardHeader>
+              <CardContent><div className="text-2xl font-bold">{sessions.length}</div><p className="text-xs text-muted-foreground">Recorded class sessions</p></CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-1"><CardTitle className="text-sm text-gray-500">Students Enrolled</CardTitle></CardHeader>
-              <CardContent><div className="text-2xl font-bold">{sessions[0]?.rows.length ?? 0}</div><p className="text-xs text-gray-400">Per session</p></CardContent>
+              <CardHeader className="pb-1"><CardTitle className="text-sm text-muted-foreground">Students Enrolled</CardTitle></CardHeader>
+              <CardContent><div className="text-2xl font-bold">{sessions[0]?.rows.length ?? 0}</div><p className="text-xs text-muted-foreground">Per session</p></CardContent>
             </Card>
           </div>
         )}
