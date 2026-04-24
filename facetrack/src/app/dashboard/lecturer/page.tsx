@@ -46,7 +46,8 @@ export default function LecturerDashboard() {
     const lecturerId = (user as any)?.lecturer_id;
 
     fetch(`${API_URL}/api/courses`, { headers }).then(r => r.json())
-      .then((all: Course[]) => {
+      .then((res: any) => {
+        const all: Course[] = Array.isArray(res) ? res : (res.courses ?? []);
         const mine = all.filter(c => c.lecturer_id === lecturerId);
         setCourses(mine);
         const totalStudents = mine.reduce((s, c) => s + (c.total_enrolled_students || 0), 0);
@@ -68,7 +69,7 @@ export default function LecturerDashboard() {
 
   // Filter charts to only show lecturer's own courses
   const myCodes = new Set(courses.map(c => c.course_code));
-  const myByCourse = byCourse.filter(d => myCodes.has(d.course));
+  const myByCourse = Array.isArray(byCourse) ? byCourse.filter(d => myCodes.has(d.course)) : [];
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-gray-50">

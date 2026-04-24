@@ -1726,14 +1726,27 @@ export default function TakeAttendancePage() {
     return () => clearInterval(id);
   }, [isCapturing, isWebcamReady, captureAndProcess]);
 
-  // When capturing stops, mark all still-pending students as absent
-  const handleStopCapturing = useCallback(() => {
+  // When capturing stops, mark pending students absent in UI and persist to DB
+  const handleStopCapturing = useCallback(async () => {
     setIsCapturing(false);
     setDetectedFaces([]);
+    // Update UI immediately
     setEnrolledStudents(prev =>
       prev.map(s => s.status === 'pending' ? { ...s, status: 'absent' } : s)
     );
-  }, []);
+    // Persist absent records to backend
+    if (!courseInfo.scheduleId || !courseCode) return;
+    try {
+      const token = getAuthToken();
+      await fetch(`${API_URL}/api/attendance/finalise`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ course_code: courseCode, schedule_id: courseInfo.scheduleId })
+      });
+    } catch (err) {
+      console.error('Failed to finalise session:', err);
+    }
+  }, [courseCode, courseInfo.scheduleId]);
 
   const toggleCapture = useCallback(() => {
     if (isCapturing) {

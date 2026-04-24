@@ -1074,6 +1074,91 @@ def get_attendance_report():
         current_app.logger.error(f"Error generating attendance report for course {course_code}: {e}", exc_info=True)
         return jsonify({"message": f"An error occurred: {str(e)}"}), 500
 
+@attendance_bp.route('/<int:attendance_id>', methods=['PUT'])
+@jwt_required()
+def update_attendance(attendance_id):
+    """Lecturer can directly update a single attendance record's status."""
+    is_authorized, error_response, status_code = admin_or_lecturer_required()
+    if not is_authorized:
+        return error_response, status_code
+
+    data = request.get_json()
+    new_status = data.get('status', '').upper()
+    if new_status not in ('PRESENT', 'ABSENT', 'LATE'):
+        return jsonify({'error': 'status must be PRESENT, ABSENT or LATE'}), 400
+
+    record = AttendanceRecord.query.get(attendance_id)
+    if not record:
+        return jsonify({'error': 'Attendance record not found'}), 404
+
+    record.status = new_status
+    db.session.commit()
+    return jsonify(record.to_dict()), 200
+
+
+@attendance_bp.route('/finalise', methods=['POST'])
+@jwt_required()
+def finalise_session():
+    """Called when lecturer stops capturing. Saves ABSENT for every enrolled
+    student who has no PRESENT record for this schedule+date."""
+    is_authorized, error_response, status_code = admin_or_lecturer_required()
+    if not is_authorized:
+        return error_response, status_code
+
+    data = request.get_json()
+    course_code = data.get('course_code')
+    schedule_id = data.get('schedule_id')
+
+    if not course_code or not schedule_id:
+        return jsonify({'error': 'course_code and schedule_id are required'}), 400
+
+    try:
+        schedule_id = int(schedule_id)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'schedule_id must be an integer'}), 400
+
+    try:
+        today = date.today()
+        enrollments = Enrollment.query.filter_by(course_code=course_code).all()
+        enrolled_matricules = {e.matricule for e in enrollments}
+
+        # Find who already has a record for this schedule today
+        existing = AttendanceRecord.query.filter_by(
+            course_code=course_code,
+            schedule_id=schedule_id,
+            date=today
+        ).all()
+        already_recorded = {r.matricule for r in existing}
+
+        # Save ABSENT for everyone not yet recorded
+        absent_records = []
+        for matricule in enrolled_matricules:
+            if matricule not in already_recorded:
+                record = AttendanceRecord(
+                    matricule=matricule,
+                    course_code=course_code,
+                    schedule_id=schedule_id,
+                    date=today,
+                    status='ABSENT',
+                    timestamp=datetime.now(),
+                    verified_by_face=False
+                )
+                db.session.add(record)
+                absent_records.append(matricule)
+
+        db.session.commit()
+        return jsonify({
+            'message': 'Session finalised',
+            'absent_saved': len(absent_records),
+            'absent_matricules': absent_records
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Error finalising session: {e}', exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
 @attendance_bp.route('/video-feed', methods=['POST'])
 @jwt_required()
 def video_feed():

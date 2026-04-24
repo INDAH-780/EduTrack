@@ -9,13 +9,13 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Download, FileText, Loader2 } from 'lucide-react';
+import { Download, FileText, Loader2, LogOut } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
 
-type Course = { course_code: string; course_name: string; department: string; level: string };
+type Course = { course_code: string; course_name: string; department: string; level: string; lecturer_id: string };
 type StudentRow = {
   matricule: string;
   student_name: string;
@@ -25,8 +25,8 @@ type StudentRow = {
   attendance_rate: number;
 };
 
-export default function ReportsPage() {
-  const { isAuthenticated, userType, logout } = useAuth();
+export default function MyReportsPage() {
+  const { user, isAuthenticated, userType, logout } = useAuth();
   const router = useRouter();
 
   const [courses, setCourses] = useState<Course[]>([]);
@@ -37,17 +37,22 @@ export default function ReportsPage() {
 
   useEffect(() => {
     if (!isAuthenticated) { router.push('/login'); return; }
-    if (userType !== 'admin') { logout(); router.push('/login'); }
+    if (userType !== 'lecturer') { logout(); router.push('/login'); }
   }, [isAuthenticated, userType]);
 
   useEffect(() => {
-    if (!isAuthenticated || userType !== 'admin') return;
+    if (!isAuthenticated || userType !== 'lecturer') return;
     const token = getAuthToken();
+    const lecturerId = (user as any)?.lecturer_id;
     fetch(`${API_URL}/api/courses`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
-      .then(setCourses)
+      .then((res: any) => {
+        const all: Course[] = Array.isArray(res) ? res : (res.courses ?? []);
+        const mine = all.filter(c => c.lecturer_id === lecturerId);
+        setCourses(mine);
+      })
       .catch(console.error);
-  }, [isAuthenticated, userType]);
+  }, [isAuthenticated, userType, user]);
 
   const loadReport = async (courseCode: string) => {
     setSelectedCourse(courseCode);
@@ -61,10 +66,8 @@ export default function ReportsPage() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      // data.records is an array of attendance record dicts
       const records: any[] = data.records || [];
 
-      // Aggregate per student
       const map = new Map<string, StudentRow>();
       for (const r of records) {
         if (!map.has(r.matricule)) {
@@ -103,10 +106,11 @@ export default function ReportsPage() {
     doc.text(`Attendance Report — ${courseInfo.course_name} (${courseInfo.course_code})`, 14, 18);
     doc.setFontSize(10);
     doc.text(`${courseInfo.department} | ${courseInfo.level}`, 14, 26);
-    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 32);
+    doc.text(`Lecturer: ${user?.name || 'N/A'}`, 14, 32);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 38);
 
     autoTable(doc, {
-      startY: 38,
+      startY: 44,
       head: [['Matricule', 'Name', 'Total Sessions', 'Present', 'Absent', 'Rate']],
       body: rows.map(r => [
         r.matricule, r.student_name, r.total_sessions,
@@ -119,7 +123,7 @@ export default function ReportsPage() {
     doc.save(`attendance_${courseInfo.course_code}.pdf`);
   };
 
-  if (!isAuthenticated || userType !== 'admin') {
+  if (!isAuthenticated || userType !== 'lecturer') {
     return <div className="flex items-center justify-center h-screen"><p>Redirecting...</p></div>;
   }
 
@@ -130,15 +134,23 @@ export default function ReportsPage() {
   return (
     <div className="flex min-h-screen w-full flex-col bg-gray-50">
       <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-white px-6 shadow-sm">
-        <h1 className="text-xl font-semibold">Attendance Reports</h1>
+        <h1 className="text-xl font-semibold">My Reports</h1>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-gray-600">
+            Welcome, <span className="font-medium">{user?.name || 'Lecturer'}</span>
+          </span>
+          <Button variant="ghost" size="sm" onClick={logout} className="flex items-center gap-2">
+            <LogOut className="h-4 w-4" /> Sign Out
+          </Button>
+        </div>
       </header>
 
       <main className="flex-1 p-6 space-y-6">
         {/* Course selector */}
         <Card>
           <CardHeader>
-            <CardTitle>Select Course</CardTitle>
-            <CardDescription>Choose a course to view its attendance report</CardDescription>
+            <CardTitle>Select Your Course</CardTitle>
+            <CardDescription>View attendance reports for courses you teach</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col sm:flex-row gap-4">
             <Select value={selectedCourse} onValueChange={loadReport}>
@@ -146,11 +158,15 @@ export default function ReportsPage() {
                 <SelectValue placeholder="Select a course..." />
               </SelectTrigger>
               <SelectContent>
-                {courses.map(c => (
-                  <SelectItem key={c.course_code} value={c.course_code}>
-                    {c.course_code} — {c.course_name}
-                  </SelectItem>
-                ))}
+                {courses.length === 0 ? (
+                  <SelectItem value="none" disabled>No courses assigned</SelectItem>
+                ) : (
+                  courses.map(c => (
+                    <SelectItem key={c.course_code} value={c.course_code}>
+                      {c.course_code} — {c.course_name}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
             {rows.length > 0 && (
