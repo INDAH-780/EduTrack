@@ -314,12 +314,10 @@ export function LecturerCoursesTable({
                                   router.push(
                                     `/take-attendance/${selectedCourse.course_code}?` +
                                       `schedule_id=${schedule.schedule_id}&` +
-                                      `day=${schedule.day_of_week}&` +
+                                      `course_name=${encodeURIComponent(schedule.course_name || selectedCourse.course_name)}&` +
                                       `start_time=${schedule.start_time}&` +
                                       `end_time=${schedule.end_time}&` +
-                                      `location=${encodeURIComponent(
-                                        schedule.location
-                                      )}`
+                                      `location=${encodeURIComponent(schedule.location)}`
                                   )
                                 }
                               >

@@ -1653,7 +1653,7 @@ export default function TakeAttendancePage() {
 
   // Capture frame and send to backend
   const captureAndProcess = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current || !isWebcamReady) return;
+    if (!videoRef.current || !canvasRef.current || !isWebcamReady || !courseInfo.scheduleId) return;
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
