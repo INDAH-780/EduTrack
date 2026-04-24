@@ -143,14 +143,14 @@ export function LecturerCoursesTable({
           <input
             type="text"
             placeholder="Search courses..."
-            className="pl-10 pr-4 py-2 border rounded-lg w-full text-sm"
+            className="pl-10 pr-4 py-2 border border-border rounded-lg w-full text-sm bg-background text-foreground placeholder:text-muted-foreground"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         </div>
         <select
-          className="border rounded-lg px-3 py-2 text-sm"
+          className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         >
@@ -163,7 +163,7 @@ export function LecturerCoursesTable({
       {/* Courses Table */}
       <div className="border rounded-lg overflow-hidden">
         <Table>
-          <TableHeader className="bg-gray-50">
+          <TableHeader className="bg-muted/50">
             <TableRow>
               <TableHead>Code</TableHead>
               <TableHead>Course Name</TableHead>
@@ -204,7 +204,7 @@ export function LecturerCoursesTable({
               <TableRow>
                 <TableCell
                   colSpan={6}
-                  className="text-center py-8 text-gray-500"
+                  className="text-center py-8 text-muted-foreground"
                 >
                   {courses.length === 0
                     ? "No courses assigned"
@@ -230,12 +230,12 @@ export function LecturerCoursesTable({
 
               <div className="space-y-6">
                 <div className="grid gap-4 md:grid-cols-3">
-                  <div className="rounded-lg border bg-white shadow-sm">
+                  <div className="rounded-lg border bg-card shadow-sm">
                     <div className="p-4 border-b flex flex-row items-center justify-between pb-2">
-                      <span className="text-sm font-medium text-gray-500">
+                      <span className="text-sm font-medium text-muted-foreground">
                         Department
                       </span>
-                      <BookOpen className="h-4 w-4 text-gray-500" />
+                      <BookOpen className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <div className="p-4">
                       <div className="text-lg font-medium">
@@ -244,12 +244,12 @@ export function LecturerCoursesTable({
                     </div>
                   </div>
 
-                  <div className="rounded-lg border bg-white shadow-sm">
+                  <div className="rounded-lg border bg-card shadow-sm">
                     <div className="p-4 border-b flex flex-row items-center justify-between pb-2">
-                      <span className="text-sm font-medium text-gray-500">
+                      <span className="text-sm font-medium text-muted-foreground">
                         Enrolled Students
                       </span>
-                      <Users className="h-4 w-4 text-gray-500" />
+                      <Users className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <div className="p-4">
                       <div className="text-lg font-medium">
@@ -258,12 +258,12 @@ export function LecturerCoursesTable({
                     </div>
                   </div>
 
-                  <div className="rounded-lg border bg-white shadow-sm">
+                  <div className="rounded-lg border bg-card shadow-sm">
                     <div className="p-4 border-b flex flex-row items-center justify-between pb-2">
-                      <span className="text-sm font-medium text-gray-500">
+                      <span className="text-sm font-medium text-muted-foreground">
                         Level & Semester
                       </span>
-                      <Clock className="h-4 w-4 text-gray-500" />
+                      <Clock className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <div className="p-4">
                       <div className="text-lg font-medium">
@@ -274,14 +274,14 @@ export function LecturerCoursesTable({
                 </div>
 
                 {/* Schedule Section */}
-                <div className="rounded-lg border bg-white shadow-sm">
+                <div className="rounded-lg border bg-card shadow-sm">
                   <div className="p-4 border-b">
                     <h3 className="text-sm font-medium flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
                       Class Schedule
                     </h3>
                   </div>
-                  <div className="divide-y">
+                  <div className="divide-y divide-border">
                     {getCourseSchedules(selectedCourse.course_code).length >
                     0 ? (
                       getCourseSchedules(selectedCourse.course_code).map(
@@ -294,7 +294,7 @@ export function LecturerCoursesTable({
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <Clock className="h-4 w-4 text-gray-500" />
+                                <Clock className="h-4 w-4 text-muted-foreground" />
                                 <span>
                                   {formatTimeRange(
                                     schedule.start_time,
@@ -303,7 +303,7 @@ export function LecturerCoursesTable({
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <MapPin className="h-4 w-4 text-gray-500" />
+                                <MapPin className="h-4 w-4 text-muted-foreground" />
                                 <span>{schedule.location}</span>
                               </div>
                             </div>
@@ -328,7 +328,7 @@ export function LecturerCoursesTable({
                         )
                       )
                     ) : (
-                      <div className="p-4 text-center text-gray-500">
+                      <div className="p-4 text-center text-muted-foreground">
                         No schedule found for this course
                       </div>
                     )}
@@ -336,7 +336,7 @@ export function LecturerCoursesTable({
                 </div>
 
                 {/* Lecturer Info Section */}
-                <div className="rounded-lg border bg-white shadow-sm">
+                <div className="rounded-lg border bg-card shadow-sm">
                   <div className="p-4 border-b">
                     <h3 className="text-sm font-medium">
                       Lecturer Information
@@ -344,14 +344,14 @@ export function LecturerCoursesTable({
                   </div>
                   <div className="p-4">
                     <div className="flex items-center gap-4">
-                      <div className="bg-gray-100 rounded-full p-3">
-                        <User className="h-5 w-5 text-gray-500" />
+                      <div className="bg-muted rounded-full p-3">
+                        <User className="h-5 w-5 text-muted-foreground" />
                       </div>
                       <div>
                         <p className="font-medium">
                           {selectedCourse.lecturer_name}
                         </p>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-muted-foreground">
                           ID: {selectedCourse.lecturer_id}
                         </p>
                       </div>

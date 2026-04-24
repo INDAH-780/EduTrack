@@ -56,7 +56,7 @@
 //     return (
 //       <div className="p-6 space-y-6">
 //         <StudentStats students={[]} loading={true} />
-//         <div className="rounded-md border h-64 animate-pulse bg-gray-100"></div>
+//         <div className="rounded-md border h-64 animate-pulse bg-muted"></div>
 //       </div>
 //     );
 //   }
@@ -174,7 +174,7 @@ export default function StudentsPage() {
     return (
       <div className="p-6 space-y-6">
         <StudentStats students={[]} loading={true} />
-        <div className="rounded-md border h-64 animate-pulse bg-gray-100"></div>
+        <div className="rounded-md border h-64 animate-pulse bg-muted"></div>
       </div>
     );
   }

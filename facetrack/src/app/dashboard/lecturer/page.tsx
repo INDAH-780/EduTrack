@@ -46,7 +46,8 @@ export default function LecturerDashboard() {
     const lecturerId = (user as any)?.lecturer_id;
 
     fetch(`${API_URL}/api/courses`, { headers }).then(r => r.json())
-      .then((all: Course[]) => {
+      .then((res: any) => {
+        const all: Course[] = Array.isArray(res) ? res : (res.courses ?? []);
         const mine = all.filter(c => c.lecturer_id === lecturerId);
         setCourses(mine);
         const totalStudents = mine.reduce((s, c) => s + (c.total_enrolled_students || 0), 0);
@@ -68,14 +69,14 @@ export default function LecturerDashboard() {
 
   // Filter charts to only show lecturer's own courses
   const myCodes = new Set(courses.map(c => c.course_code));
-  const myByCourse = byCourse.filter(d => myCodes.has(d.course));
+  const myByCourse = Array.isArray(byCourse) ? byCourse.filter(d => myCodes.has(d.course)) : [];
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-gray-50">
-      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-white px-6 shadow-sm">
+    <div className="flex min-h-screen w-full flex-col bg-background">
+      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background px-6 shadow-sm">
         <h1 className="text-xl font-semibold">Lecturer Portal</h1>
         <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-600">Welcome, <span className="font-medium">{user?.name || 'Lecturer'}</span></span>
+          <span className="text-sm text-muted-foreground">Welcome, <span className="font-medium">{user?.name || 'Lecturer'}</span></span>
           <Button variant="ghost" size="sm" onClick={logout} className="flex items-center gap-2">
             <LogOut className="h-4 w-4" /> Sign Out
           </Button>
@@ -100,7 +101,7 @@ export default function LecturerDashboard() {
             </CardHeader>
             <CardContent>
               {dailyTrend.length === 0 ? (
-                <div className="flex items-center justify-center h-48 text-gray-400 text-sm">No attendance data yet</div>
+                <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">No attendance data yet</div>
               ) : (
                 <ResponsiveContainer width="100%" height={250}>
                   <LineChart data={dailyTrend}>
@@ -124,7 +125,7 @@ export default function LecturerDashboard() {
             </CardHeader>
             <CardContent>
               {myByCourse.length === 0 ? (
-                <div className="flex items-center justify-center h-48 text-gray-400 text-sm">No attendance data yet</div>
+                <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">No attendance data yet</div>
               ) : (
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={myByCourse}>
@@ -154,7 +155,7 @@ export default function LecturerDashboard() {
           </CardHeader>
           <CardContent>
             {courses.length === 0 && !stats.loading ? (
-              <p className="text-sm text-gray-500 text-center py-6">No courses assigned to you yet.</p>
+              <p className="text-sm text-muted-foreground text-center py-6">No courses assigned to you yet.</p>
             ) : (
               <Table>
                 <TableHeader>
@@ -198,12 +199,12 @@ function StatCard({ title, value, description, icon, valueClassName = "" }: { ti
   return (
     <Card className="shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between pb-3">
-        <h3 className="text-sm font-medium text-gray-500">{title}</h3>
+        <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
         {icon}
       </CardHeader>
       <CardContent>
         <div className={`text-2xl font-bold ${valueClassName}`}>{value}</div>
-        <p className="text-xs text-gray-500 mt-1">{description}</p>
+        <p className="text-xs text-muted-foreground mt-1">{description}</p>
       </CardContent>
     </Card>
   );
